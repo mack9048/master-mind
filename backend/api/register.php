@@ -2,15 +2,8 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/includes/bootstrap.php';
-require dirname(__DIR__) . '/includes/razorpay.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
-}
-
-if (!csrf_check($_POST['csrf'] ?? null)) {
-    json_out(['ok' => false, 'error' => 'Your session expired. Please refresh the page and try again.'], 419);
-}
+api_begin('POST');
 
 // Honeypot – real people never fill this hidden field
 if (!empty($_POST['website'])) {
@@ -68,7 +61,7 @@ if ($errors) {
 $phone  = '+91' . $phoneRaw;
 $slug   = cfg('event.slug');
 $fee    = (int) cfg('event.fee');
-$mode   = razorpay_enabled() ? 'razorpay' : 'upi';
+$mode   = 'upi';
 $pdo    = db();
 
 try {
@@ -140,37 +133,11 @@ try {
 // Signed token proving this browser created the registration (used by api/payment.php)
 $regToken = reg_token($regCode);
 
-if ($mode === 'razorpay') {
-    try {
-        $order = razorpay_create_order($fee, $regCode, ['reg_code' => $regCode, 'event' => $slug]);
-        $pdo->prepare('UPDATE registrations SET razorpay_order_id = ? WHERE id = ?')->execute([$order['id'], $id]);
-    } catch (Throwable $ex) {
-        error_log('[mastermind] razorpay: ' . $ex->getMessage());
-        json_out(['ok' => false, 'error' => 'Could not start the payment. Please try again in a moment.'], 502);
-    }
-
-    json_out([
-        'ok'       => true,
-        'mode'     => 'razorpay',
-        'reg_code' => $regCode,
-        'token'    => $regToken,
-        'razorpay' => [
-            'key'         => cfg('payment.razorpay_key'),
-            'order_id'    => $order['id'],
-            'amount'      => $fee * 100,
-            'currency'    => 'INR',
-            'name'        => cfg('event.series') . ' – ' . cfg('event.tagline'),
-            'description' => cfg('event.title') . ' · ' . cfg('event.date_label'),
-            'prefill'     => ['name' => $name, 'email' => $email, 'contact' => $phone],
-        ],
-    ]);
-}
-
 // UPI / manual mode – QR image uploaded by the institute, or generated from the UPI ID
 $qrImage = null;
 foreach (['upi-qr.png', 'upi-qr.jpg', 'upi-qr.jpeg', 'upi-qr.webp'] as $f) {
     if (is_file(dirname(__DIR__) . '/assets/img/' . $f)) {
-        $qrImage = 'assets/img/' . $f . '?v=' . filemtime(dirname(__DIR__) . '/assets/img/' . $f);
+        $qrImage = base_url() . '/assets/img/' . $f . '?v=' . filemtime(dirname(__DIR__) . '/assets/img/' . $f);
         break;
     }
 }

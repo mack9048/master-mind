@@ -1,3 +1,8 @@
-config.php
+node_modules/
+dist/
+.env
+.env.local
+backend/config.php
 .DS_Store
 *.log
+.old/

@@ -1,55 +1,38 @@
-# Master Mind · Meet the Expert — Workshop booking site
+# Master Mind · Meet the Expert — Workshop booking
 
-Landing page + registration for the **Master Mind** series by MAC Media School.
-Current edition: **Favour Your Brand** — Branding Masterclass with Favour Francis, 26 Nov 2026, 10:30 AM, fee ₹299.
+Current edition: **Favour Your Brand** — Branding Masterclass with Favour Francis · 26 Nov 2026, 10:30 AM · ₹299
 
-- Pixel-particle animated title, highlight + cursor intro, live countdown
-- Registration form → MySQL (PHP 8 / PDO, CSRF, honeypot, duplicate-phone check, seat limit)
-- Payment: **UPI QR** — after registering, the student scans your QR, pays ₹299 and enters the UTR; you confirm in admin. (Razorpay support is built in but off.)
-- Admin panel at `/admin`: stats, search, filter, mark paid / cancelled / attended, CSV export
+```
+/            React (Vite) frontend  → deploy on Vercel
+/backend     PHP + MySQL API & admin → deploy on Hostinger (class.macadz.com)
+```
 
-## Setup (Hostinger / cPanel)
+## Frontend (Vercel)
 
-1. Upload all files to `public_html` of the domain (or deploy from this Git repo).
-2. In hPanel → **Databases → MySQL**, create a database + user.
-3. Open **phpMyAdmin** and import `database.sql`.
-4. Copy `config.sample.php` → `config.php` on the server and fill in:
-   - `db` – host `localhost`, database name, user, password
-   - **UPI QR**: upload your QR image as `assets/img/upi-qr.png` (or `.jpg`), **or** set `payment.upi_id` and a QR with ₹299 pre-filled is generated
-   - `admin.pass` – password for `/admin` (or `admin.pass_hash` for a hashed one)
-5. Visit the site, register a test entry, then check `/admin`.
-6. Once SSL is active, uncomment the HTTPS redirect in `.htaccess`.
+- Vercel builds the repo root automatically (`vercel.json` → Vite, output `dist`).
+- Set **Vercel → Settings → Environment Variables**: `VITE_API_URL` = URL of the backend, e.g. `https://class.macadz.com` (no trailing slash), then redeploy.
+- Content for the edition lives in `src/config.js` (dates, fee, speaker, texts); images in `public/img`.
+- Local dev: `npm install && npm run dev`.
 
-## Deploying on Vercel
+## Backend (Hostinger)
 
-`vercel.json` runs the PHP pages with the `vercel-php` runtime. There is no `config.php` on Vercel, so add these in
-**Vercel → Project → Settings → Environment Variables** (then redeploy):
+1. Upload the **contents** of `backend/` to `public_html` of class.macadz.com.
+2. hPanel → Databases: create the database, then import `backend/database.sql` in phpMyAdmin.
+3. Copy `config.sample.php` → `config.php` and fill in:
+   - `db.pass` (name/user are pre-filled for `u455934768_master` / `u455934768_mastermind`)
+   - `frontend_url` — your Vercel URL (and any custom domain in `allowed_origins`); the API only accepts requests from these sites
+   - `app_secret` — any long random text
+   - `admin.pass` — password for `/admin`
+   - **UPI QR**: `payment.upi_id` (QR with ₹299 pre-filled is generated) **or** upload your QR image as `assets/img/upi-qr.png`
+4. Check `https://class.macadz.com/api/event.php` shows JSON, then book a test seat on the website and see it in `https://class.macadz.com/admin/`.
 
-| Name | Value |
+### API
+
+| Endpoint | |
 |---|---|
-| `DB_HOST` | your MySQL host reachable from the internet (Hostinger: the `srvNNNN.hstgr.io` host shown in hPanel → Databases) |
-| `DB_NAME` | e.g. `u455934768_master` |
-| `DB_USER` | e.g. `u455934768_mastermind` |
-| `DB_PASS` | database password |
-| `ADMIN_PASS` | password for `/admin` |
-| `APP_SECRET` | any long random text (signs cookies) |
-| `UPI_ID` | your UPI ID (QR is generated from it) — or commit `assets/img/upi-qr.png` |
+| `GET  /api/event.php` | seats left, registration open |
+| `POST /api/register.php` | name, phone, email, city, profession, organization, expectation → `reg_code`, `token`, UPI details |
+| `POST /api/payment.php` | `action=upi_ref`, `reg_code`, `token`, `payment_ref` (UTR) |
+| `/admin/` | registrations, mark paid / cancelled / attended, CSV export |
 
-On Hostinger also enable **Remote MySQL** for the database (host `%`, because Vercel has no fixed IP).
-
-## Next edition of the series
-
-Edit only the `event` block in `config.php` (new `slug`, title, speaker, date, fee) and replace
-`assets/img/favour-francis.jpg`. Registrations are stored per `event_slug`, so past editions stay in the same table.
-
-## Files
-
-```
-index.php            landing page
-api/register.php     saves registration, starts payment
-api/payment.php      Razorpay verify / UPI UTR submit
-admin/               registrations dashboard
-includes/            bootstrap (DB, helpers), Razorpay helper
-database.sql         MySQL schema
-config.sample.php    copy to config.php (git-ignored)
-```
+Registrations are stored per `event.slug`, so future Master Mind editions share the same table.

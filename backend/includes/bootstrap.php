@@ -15,6 +15,7 @@ $envMap = [
     'UPI_ID' => ['payment', 'upi_id'], 'UPI_NAME' => ['payment', 'upi_name'],
     'ADMIN_USER' => ['admin', 'user'], 'ADMIN_PASS' => ['admin', 'pass'],
     'SEATS' => ['event', 'seats'], 'APP_SECRET' => ['app_secret', null],
+    'FRONTEND_URL' => ['frontend_url', null], 'ALLOWED_ORIGINS' => ['allowed_origins', null],
 ];
 foreach ($envMap as $env => [$a, $b]) {
     $v = getenv($env);
@@ -163,6 +164,53 @@ function is_admin(): bool
         return false;
     }
     return hash_equals(sign('admin|' . $m[1] . '|' . cfg('admin.user') . '|' . cfg('admin.pass') . cfg('admin.pass_hash')), $m[2]);
+}
+
+function base_url(): string
+{
+    $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/', 2)), '/');
+    return (is_https() ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $dir;
+}
+
+/** Origins (React frontend) allowed to call the API. */
+function allowed_origins(): array
+{
+    $list = cfg('allowed_origins', []);
+    if (is_string($list)) {
+        $list = explode(',', $list);
+    }
+    $list[] = (string) cfg('frontend_url', '');
+    return array_values(array_filter(array_map(fn ($o) => rtrim(trim((string) $o), '/'), $list)));
+}
+
+/**
+ * Start a JSON API request: CORS headers, preflight, method + origin checks.
+ * Browsers always send Origin on cross-site POSTs, so rejecting unknown origins
+ * stops other websites from submitting forms to this API.
+ */
+function api_begin(string $method): void
+{
+    $origin  = rtrim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), '/');
+    $allowed = allowed_origins();
+    $ok      = $origin === '' || in_array($origin, $allowed, true) || in_array('*', $allowed, true);
+
+    if ($origin !== '' && $ok) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+        header('Vary: Origin');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type');
+        header('Access-Control-Max-Age: 86400');
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        http_response_code($ok ? 204 : 403);
+        exit;
+    }
+    if (!$ok) {
+        json_out(['ok' => false, 'error' => 'Origin not allowed'], 403);
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== $method) {
+        json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
+    }
 }
 
 function json_out(array $data, int $status = 200): void

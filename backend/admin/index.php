@@ -35,7 +35,7 @@ if (!is_admin()) {
 <title>Admin · Master Mind</title><meta name="robots" content="noindex"><link rel="stylesheet" href="admin.css"></head>
 <body class="login">
 <form method="post" class="login__box">
-  <img src="../assets/img/mastermind-logo.png" alt="Master Mind" width="160">
+  <img src="logo.png" alt="Master Mind" width="160">
   <h1>Registrations</h1>
   <?php if ($loginError): ?><p class="err"><?= e($loginError) ?></p><?php endif; ?>
   <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
@@ -119,8 +119,8 @@ $qs    = fn (array $extra = []) => '?' . http_build_query(array_filter(array_mer
 </head>
 <body>
 <header class="top">
-  <div><img src="../assets/img/mastermind-logo.png" alt="" width="110"><span><?= e(cfg('event.title')) ?> · <?= e(cfg('event.date_label')) ?></span></div>
-  <nav><a href="../" target="_blank">View site</a><a href="?logout=1">Log out</a></nav>
+  <div><img src="logo.png" alt="" width="110"><span><?= e(cfg('event.title')) ?> · <?= e(cfg('event.date_label')) ?></span></div>
+  <nav><a href="<?= e(cfg('frontend_url')) ?>" target="_blank">View site</a><a href="?logout=1">Log out</a></nav>
 </header>
 
 <main class="main">

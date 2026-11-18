@@ -8,6 +8,12 @@
 
 return [
 
+    /* ---------- React frontend (Vercel) ---------- */
+    'frontend_url'    => 'https://master-mind-sable-nine.vercel.app',
+    // Other sites allowed to call this API (your custom domain, local dev …)
+    'allowed_origins' => ['http://localhost:5173'],
+    'app_secret'      => '',   // any long random text – signs tokens & admin cookie
+
     /* ---------- MySQL database ---------- */
     'db' => [
         'host'    => 'localhost',      // on Hostinger / cPanel this is usually "localhost"
@@ -41,20 +47,14 @@ return [
         'website'     => 'https://school.macadz.com',
     ],
 
-    /* ---------- Payment ----------
-     * mode = 'razorpay' : online payment through Razorpay Checkout (recommended)
-     * mode = 'upi'      : registration is saved as "pending", the student is
-     *                     shown your UPI ID and asked to enter the UTR / transaction ID.
-     *                     You confirm payments from the admin panel.
+    /* ---------- Payment: UPI QR ----------
+     * EITHER upload your UPI QR image as assets/img/upi-qr.png (or .jpg) in this backend folder,
+     * OR fill in upi_id and a QR with the amount pre-filled is generated on the website.
+     * Students enter the UTR after paying; you mark them paid in /admin.
      */
     'payment' => [
-        'mode'           => 'upi',
-        'razorpay_key'   => '',          // rzp_live_xxxxxxxx
-        'razorpay_secret'=> '',
-        // EITHER upload your UPI QR image to assets/img/upi-qr.png (or .jpg) – shown as-is –
-        // OR fill in upi_id and a QR is generated automatically.
-        'upi_id'         => '',          // e.g. macmedia@okaxis
-        'upi_name'       => 'MAC Media School',
+        'upi_id'   => '',                 // e.g. macmedia@okaxis
+        'upi_name' => 'MAC Media School',
     ],
 
     /* ---------- Admin panel (/admin) ---------- */
