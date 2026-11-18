@@ -316,16 +316,15 @@
   function showUPI(res) {
     const u = res.upi;
     const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const hasQR = !!(u.qr || u.link);
     openModal(`
-      <h3 id="modalTitle">Almost done — pay ₹${u.amount}</h3>
-      <p>Your registration ID is reserved. Pay the fee by UPI and enter the transaction ID to confirm your seat.</p>
+      <h3 id="modalTitle">Scan &amp; pay ₹${u.amount}</h3>
+      <p>Your seat is reserved. Scan this QR with GPay, PhonePe, Paytm or any UPI app, then enter the transaction ID below.</p>
       <span class="code">${esc(res.reg_code)}</span>
-      <div class="upi">
-        <div class="upi__row"><span>UPI ID</span><b>${esc(u.id)}</b><button class="upi__copy" type="button" data-copy="${esc(u.id)}">Copy</button></div>
-        <div class="upi__row"><span>Name</span><b>${esc(u.name)}</b></div>
-        <div class="upi__row"><span>Amount</span><b>₹${u.amount}</b></div>
-      </div>
-      ${isMobile ? `<a class="btn btn--ghost btn--block" href="${esc(u.link)}">Open UPI app to pay ₹${u.amount}</a>` : ''}
+      ${hasQR ? `<div class="qr"><div class="qr__box" id="qrBox">${u.qr ? `<img src="${esc(u.qr)}" alt="UPI QR code to pay ₹${u.amount}">` : ''}</div>
+        <p class="qr__cap">Pay <b>₹${u.amount}</b> to <b>${esc(u.name)}</b>${u.id ? `<br><small>${esc(u.id)}</small>` : ''}</p></div>`
+        : `<p class="qr__cap">Our team will send you the payment QR on WhatsApp shortly.</p>`}
+      ${isMobile && u.link ? `<a class="btn btn--ghost btn--block" href="${esc(u.link)}">Open UPI app to pay ₹${u.amount}</a>` : ''}
       <form class="form" id="utrForm" style="margin-top:16px">
         <div class="field">
           <label for="utr">UPI transaction / UTR number</label>
@@ -335,10 +334,12 @@
         <button class="btn btn--pink btn--block" type="submit"><span class="btn__label">Confirm payment</span><span class="btn__spin"></span></button>
       </form>`);
 
-    $('[data-copy]', modalBody).addEventListener('click', (e) => {
-      navigator.clipboard && navigator.clipboard.writeText(e.currentTarget.dataset.copy);
-      e.currentTarget.textContent = 'Copied';
-    });
+    if (!u.qr && u.link && typeof window.qrcode === 'function') {
+      const q = window.qrcode(0, 'M');
+      q.addData(u.link);
+      q.make();
+      $('#qrBox', modalBody).innerHTML = q.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+    }
     $('#utrForm', modalBody).addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.currentTarget, b = $('button', f), err = $('.field__err', f);

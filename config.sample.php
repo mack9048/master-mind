@@ -12,9 +12,9 @@ return [
     'db' => [
         'host'    => 'localhost',      // on Hostinger / cPanel this is usually "localhost"
         'port'    => 3306,
-        'name'    => 'mastermind',     // database name you created
-        'user'    => 'mastermind_user',
-        'pass'    => 'CHANGE_ME',
+        'name'    => 'u455934768_master',      // database name from hPanel
+        'user'    => 'u455934768_mastermind',
+        'pass'    => 'PUT_YOUR_DB_PASSWORD_HERE',
         'charset' => 'utf8mb4',
     ],
 
@@ -32,7 +32,7 @@ return [
         'date_label'  => 'Thursday, 26 November 2026',
         'time_label'  => '10:30 AM',
         'venue'       => 'MAC Media School',
-        'venue_map'   => 'https://maps.google.com/?q=MAC+Media+School',
+        'venue_map'   => 'https://share.google/HKLeRtwW1w3lzlQrD',
         'fee'         => 299,            // in rupees
         'seats'       => 60,             // total seats (0 = unlimited, hides the seat counter)
         'phone'       => '+91 90724 83502',
@@ -51,14 +51,17 @@ return [
         'mode'           => 'upi',
         'razorpay_key'   => '',          // rzp_live_xxxxxxxx
         'razorpay_secret'=> '',
-        'upi_id'         => 'yourname@upi',
+        // EITHER upload your UPI QR image to assets/img/upi-qr.png (or .jpg) – shown as-is –
+        // OR fill in upi_id and a QR is generated automatically.
+        'upi_id'         => '',          // e.g. macmedia@okaxis
         'upi_name'       => 'MAC Media School',
     ],
 
     /* ---------- Admin panel (/admin) ---------- */
     'admin' => [
         'user' => 'admin',
-        // Generate a hash with:  php -r "echo password_hash('your-password', PASSWORD_DEFAULT);"
+        'pass'      => '',   // admin password (plain), OR leave empty and use pass_hash below
+        // Optional, more secure:  php -r "echo password_hash('your-password', PASSWORD_DEFAULT);"
         'pass_hash' => '',
     ],
 

@@ -274,7 +274,7 @@ $csrf      = csrf_token();
     </div>
     <div class="faq__list reveal">
       <details><summary>Who can attend?</summary><p>Anyone curious about branding — students, designers, marketers, entrepreneurs and business owners. No prior experience needed.</p></details>
-      <details><summary>How do I pay the ₹<?= $fee ?> fee?</summary><p><?= razorpay_enabled() ? 'Pay securely online with UPI, card or net banking right after filling the form.' : 'After filling the form you will see our UPI ID. Pay ₹' . $fee . ' and enter the UPI transaction (UTR) number. We confirm your seat on WhatsApp.' ?></p></details>
+      <details><summary>How do I pay the ₹<?= $fee ?> fee?</summary><p><?= razorpay_enabled() ? 'Pay securely online with UPI, card or net banking right after filling the form.' : 'After filling the form you will see our UPI QR code. Scan it with GPay, PhonePe, Paytm or any UPI app, pay ₹' . $fee . ' and enter the UPI transaction (UTR) number. We confirm your seat on WhatsApp.' ?></p></details>
       <details><summary>How do I know my seat is confirmed?</summary><p>You get a registration ID (like MM26-XXXXXX) as soon as you register. Once the payment is confirmed your seat is reserved. Show the ID at the venue.</p></details>
       <details><summary>Where is the venue?</summary><p><?= e($ev['venue']) ?>. <a class="link" href="<?= e($ev['venue_map']) ?>" target="_blank" rel="noopener">Open in Google Maps</a>.</p></details>
       <details><summary>Is the fee refundable?</summary><p>Please contact us on <?= e($ev['phone']) ?> if you can’t make it — we’ll do our best to help.</p></details>
@@ -320,6 +320,7 @@ window.MM = {
   dateLabel: <?= json_encode($ev['date_label'] . ' · ' . $ev['time_label']) ?>
 };
 </script>
+<script src="assets/js/vendor/qrcode.js" defer></script>
 <?php if (razorpay_enabled()): ?>
 <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
 <?php endif; ?>

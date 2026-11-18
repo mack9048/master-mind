@@ -18,18 +18,21 @@ if (empty($_SESSION['admin'])) {
         if ($_SESSION['login_tries'] > 8) {
             sleep(2);
         }
-        $hash = (string) cfg('admin.pass_hash');
+        $hash  = (string) cfg('admin.pass_hash', '');
+        $plain = (string) cfg('admin.pass', '');
+        $given = (string) ($_POST['pass'] ?? '');
+        $passOk = $hash !== '' ? password_verify($given, $hash) : ($plain !== '' && hash_equals($plain, $given));
         if (csrf_check($_POST['csrf'] ?? null)
-            && $hash !== ''
+            && ($hash !== '' || $plain !== '')
             && hash_equals((string) cfg('admin.user'), (string) ($_POST['user'] ?? ''))
-            && password_verify((string) ($_POST['pass'] ?? ''), $hash)) {
+            && $passOk) {
             session_regenerate_id(true);
             $_SESSION['admin'] = true;
             $_SESSION['login_tries'] = 0;
             header('Location: ./');
             exit;
         }
-        $loginError = $hash === '' ? 'Admin password is not set in config.php.' : 'Wrong username or password.';
+        $loginError = ($hash === '' && $plain === '') ? 'Admin password is not set in config.php.' : 'Wrong username or password.';
     }
     ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

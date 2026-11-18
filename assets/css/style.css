@@ -331,6 +331,14 @@ p { margin: 0; }
 .modal .stack { display: grid; gap: 12px; margin-top: 16px; }
 .modal .ok-icon { width: 56px; height: 56px; margin-bottom: 16px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: #102010; font-size: 1.8rem; font-weight: 800; }
 
+/* UPI QR */
+.qr { display: grid; justify-items: center; gap: 10px; margin: 6px 0 14px; }
+.qr__box { padding: 14px; border-radius: 14px; background: #fff; line-height: 0; }
+.qr__box img { width: 240px; height: auto; }
+.qr__box svg { display: block; width: 220px; height: 220px; }
+.qr__cap { text-align: center; }
+.qr__cap b { color: var(--text); }
+
 /* Scroll reveal */
 .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s, transform .8s cubic-bezier(.2,.7,.2,1); }
 .reveal.is-in { opacity: 1; transform: none; }

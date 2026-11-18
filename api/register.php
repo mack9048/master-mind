@@ -165,7 +165,14 @@ if ($mode === 'razorpay') {
     ]);
 }
 
-// UPI / manual mode
+// UPI / manual mode – QR image uploaded by the institute, or generated from the UPI ID
+$qrImage = null;
+foreach (['upi-qr.png', 'upi-qr.jpg', 'upi-qr.jpeg', 'upi-qr.webp'] as $f) {
+    if (is_file(dirname(__DIR__) . '/assets/img/' . $f)) {
+        $qrImage = 'assets/img/' . $f . '?v=' . filemtime(dirname(__DIR__) . '/assets/img/' . $f);
+        break;
+    }
+}
 $upiLink = sprintf(
     'upi://pay?pa=%s&pn=%s&am=%d&cu=INR&tn=%s',
     rawurlencode((string) cfg('payment.upi_id')),
@@ -182,6 +189,7 @@ json_out([
         'id'     => cfg('payment.upi_id'),
         'name'   => cfg('payment.upi_name'),
         'amount' => $fee,
-        'link'   => $upiLink,
+        'link'   => cfg('payment.upi_id') ? $upiLink : null,
+        'qr'     => $qrImage,
     ],
 ]);

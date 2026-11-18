@@ -5,7 +5,7 @@ Current edition: **Favour Your Brand** — Branding Masterclass with Favour Fran
 
 - Pixel-particle animated title, highlight + cursor intro, live countdown
 - Registration form → MySQL (PHP 8 / PDO, CSRF, honeypot, duplicate-phone check, seat limit)
-- Payment: **UPI mode** (student pays to your UPI ID and enters the UTR, you confirm in admin) or **Razorpay mode** (online checkout, auto-confirmed)
+- Payment: **UPI QR** — after registering, the student scans your QR, pays ₹299 and enters the UTR; you confirm in admin. (Razorpay support is built in but off.)
 - Admin panel at `/admin`: stats, search, filter, mark paid / cancelled / attended, CSV export
 
 ## Setup (Hostinger / cPanel)
@@ -15,8 +15,8 @@ Current edition: **Favour Your Brand** — Branding Masterclass with Favour Fran
 3. Open **phpMyAdmin** and import `database.sql`.
 4. Copy `config.sample.php` → `config.php` on the server and fill in:
    - `db` – host `localhost`, database name, user, password
-   - `payment.upi_id` (UPI mode) **or** set `payment.mode = 'razorpay'` with your Razorpay key/secret
-   - `admin.pass_hash` – generate with `php -r "echo password_hash('your-password', PASSWORD_DEFAULT);"`
+   - **UPI QR**: upload your QR image as `assets/img/upi-qr.png` (or `.jpg`), **or** set `payment.upi_id` and a QR with ₹299 pre-filled is generated
+   - `admin.pass` – password for `/admin` (or `admin.pass_hash` for a hashed one)
 5. Visit the site, register a test entry, then check `/admin`.
 6. Once SSL is active, uncomment the HTTPS redirect in `.htaccess`.
 
