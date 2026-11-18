@@ -1,0 +1,187 @@
+<?php
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/includes/bootstrap.php';
+require dirname(__DIR__) . '/includes/razorpay.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
+}
+
+if (!csrf_check($_POST['csrf'] ?? null)) {
+    json_out(['ok' => false, 'error' => 'Your session expired. Please refresh the page and try again.'], 419);
+}
+
+// Honeypot – real people never fill this hidden field
+if (!empty($_POST['website'])) {
+    json_out(['ok' => false, 'error' => 'Invalid submission.'], 400);
+}
+
+if (!registration_open()) {
+    json_out(['ok' => false, 'error' => 'Registrations are closed for this edition.'], 410);
+}
+
+/* ---------- Validate ---------- */
+$professions = ['Student', 'Designer', 'Marketer', 'Entrepreneur', 'Business Owner', 'Working Professional', 'Other'];
+
+$name        = trim(preg_replace('/\s+/u', ' ', (string) ($_POST['name'] ?? '')));
+$email       = strtolower(trim((string) ($_POST['email'] ?? '')));
+$phoneRaw    = preg_replace('/\D+/', '', (string) ($_POST['phone'] ?? ''));
+$city        = trim((string) ($_POST['city'] ?? ''));
+$profession  = trim((string) ($_POST['profession'] ?? ''));
+$org         = trim((string) ($_POST['organization'] ?? ''));
+$expectation = trim((string) ($_POST['expectation'] ?? ''));
+
+// Normalise Indian numbers: allow 10 digits, or 91 / 0 prefixed
+if (strlen($phoneRaw) === 12 && str_starts_with($phoneRaw, '91')) {
+    $phoneRaw = substr($phoneRaw, 2);
+} elseif (strlen($phoneRaw) === 11 && str_starts_with($phoneRaw, '0')) {
+    $phoneRaw = substr($phoneRaw, 1);
+}
+
+$errors = [];
+if (mb_strlen($name) < 2 || mb_strlen($name) > 120) {
+    $errors['name'] = 'Please enter your full name.';
+}
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 160) {
+    $errors['email'] = 'Please enter a valid email address.';
+}
+if (!preg_match('/^[6-9]\d{9}$/', $phoneRaw)) {
+    $errors['phone'] = 'Please enter a valid 10-digit mobile number.';
+}
+if (mb_strlen($city) < 2 || mb_strlen($city) > 80) {
+    $errors['city'] = 'Please enter your city / place.';
+}
+if (!in_array($profession, $professions, true)) {
+    $errors['profession'] = 'Please choose what describes you best.';
+}
+if (mb_strlen($org) > 160) {
+    $errors['organization'] = 'Too long.';
+}
+if (mb_strlen($expectation) > 1000) {
+    $errors['expectation'] = 'Please keep this under 1000 characters.';
+}
+if ($errors) {
+    json_out(['ok' => false, 'error' => 'Please check the highlighted fields.', 'fields' => $errors], 422);
+}
+
+$phone  = '+91' . $phoneRaw;
+$slug   = cfg('event.slug');
+$fee    = (int) cfg('event.fee');
+$mode   = razorpay_enabled() ? 'razorpay' : 'upi';
+$pdo    = db();
+
+try {
+    $pdo->beginTransaction();
+
+    // Already registered with this number?
+    $stmt = $pdo->prepare('SELECT * FROM registrations WHERE event_slug = ? AND phone = ? FOR UPDATE');
+    $stmt->execute([$slug, $phone]);
+    $existing = $stmt->fetch();
+
+    if ($existing && $existing['payment_status'] === 'paid') {
+        $pdo->rollBack();
+        json_out([
+            'ok'    => false,
+            'error' => 'This mobile number is already registered and paid. Your registration ID is ' . $existing['reg_code'] . '.',
+        ], 409);
+    }
+
+    // Capacity check (a returning "pending" person already holds a seat)
+    $total = (int) cfg('event.seats', 0);
+    if ($total > 0 && !($existing && $existing['payment_status'] === 'pending')) {
+        $c = $pdo->prepare("SELECT COUNT(*) FROM registrations WHERE event_slug = ? AND payment_status IN ('paid','pending') FOR UPDATE");
+        $c->execute([$slug]);
+        if ((int) $c->fetchColumn() >= $total) {
+            $pdo->rollBack();
+            json_out(['ok' => false, 'error' => 'Sorry, all seats are booked. Call us to join the waitlist.'], 409);
+        }
+    }
+
+    $fields = [
+        'name'         => $name,
+        'email'        => $email,
+        'city'         => $city,
+        'profession'   => $profession,
+        'organization' => $org !== '' ? $org : null,
+        'expectation'  => $expectation !== '' ? $expectation : null,
+        'amount'       => $fee,
+        'payment_mode' => $mode,
+        'ip_address'   => client_ip(),
+        'user_agent'   => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
+    ];
+
+    if ($existing) {
+        // Retry of an unpaid / failed registration – refresh details, keep the same ID
+        $regCode = $existing['reg_code'];
+        $id      = (int) $existing['id'];
+        $sets    = implode(', ', array_map(fn ($k) => "$k = :$k", array_keys($fields)));
+        $upd     = $pdo->prepare("UPDATE registrations SET $sets, payment_status = 'pending' WHERE id = :id");
+        $upd->execute($fields + ['id' => $id]);
+    } else {
+        $regCode = new_reg_code();
+        $cols    = array_merge(['reg_code', 'event_slug', 'phone'], array_keys($fields));
+        $ins     = $pdo->prepare(
+            'INSERT INTO registrations (' . implode(', ', $cols) . ') VALUES (:' . implode(', :', $cols) . ')'
+        );
+        $ins->execute(['reg_code' => $regCode, 'event_slug' => $slug, 'phone' => $phone] + $fields);
+        $id = (int) $pdo->lastInsertId();
+    }
+
+    $pdo->commit();
+} catch (Throwable $ex) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log('[mastermind] register: ' . $ex->getMessage());
+    json_out(['ok' => false, 'error' => 'Something went wrong while saving. Please try again or call ' . cfg('event.phone') . '.'], 500);
+}
+
+// Remember which registrations belong to this browser session (used by api/payment.php)
+$_SESSION['regs'][$regCode] = $id;
+
+if ($mode === 'razorpay') {
+    try {
+        $order = razorpay_create_order($fee, $regCode, ['reg_code' => $regCode, 'event' => $slug]);
+        $pdo->prepare('UPDATE registrations SET razorpay_order_id = ? WHERE id = ?')->execute([$order['id'], $id]);
+    } catch (Throwable $ex) {
+        error_log('[mastermind] razorpay: ' . $ex->getMessage());
+        json_out(['ok' => false, 'error' => 'Could not start the payment. Please try again in a moment.'], 502);
+    }
+
+    json_out([
+        'ok'       => true,
+        'mode'     => 'razorpay',
+        'reg_code' => $regCode,
+        'razorpay' => [
+            'key'         => cfg('payment.razorpay_key'),
+            'order_id'    => $order['id'],
+            'amount'      => $fee * 100,
+            'currency'    => 'INR',
+            'name'        => cfg('event.series') . ' – ' . cfg('event.tagline'),
+            'description' => cfg('event.title') . ' · ' . cfg('event.date_label'),
+            'prefill'     => ['name' => $name, 'email' => $email, 'contact' => $phone],
+        ],
+    ]);
+}
+
+// UPI / manual mode
+$upiLink = sprintf(
+    'upi://pay?pa=%s&pn=%s&am=%d&cu=INR&tn=%s',
+    rawurlencode((string) cfg('payment.upi_id')),
+    rawurlencode((string) cfg('payment.upi_name')),
+    $fee,
+    rawurlencode('Master Mind ' . $regCode)
+);
+
+json_out([
+    'ok'       => true,
+    'mode'     => 'upi',
+    'reg_code' => $regCode,
+    'upi'      => [
+        'id'     => cfg('payment.upi_id'),
+        'name'   => cfg('payment.upi_name'),
+        'amount' => $fee,
+        'link'   => $upiLink,
+    ],
+]);
