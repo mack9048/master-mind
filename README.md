@@ -20,6 +20,23 @@ Current edition: **Favour Your Brand** — Branding Masterclass with Favour Fran
 5. Visit the site, register a test entry, then check `/admin`.
 6. Once SSL is active, uncomment the HTTPS redirect in `.htaccess`.
 
+## Deploying on Vercel
+
+`vercel.json` runs the PHP pages with the `vercel-php` runtime. There is no `config.php` on Vercel, so add these in
+**Vercel → Project → Settings → Environment Variables** (then redeploy):
+
+| Name | Value |
+|---|---|
+| `DB_HOST` | your MySQL host reachable from the internet (Hostinger: the `srvNNNN.hstgr.io` host shown in hPanel → Databases) |
+| `DB_NAME` | e.g. `u455934768_master` |
+| `DB_USER` | e.g. `u455934768_mastermind` |
+| `DB_PASS` | database password |
+| `ADMIN_PASS` | password for `/admin` |
+| `APP_SECRET` | any long random text (signs cookies) |
+| `UPI_ID` | your UPI ID (QR is generated from it) — or commit `assets/img/upi-qr.png` |
+
+On Hostinger also enable **Remote MySQL** for the database (host `%`, because Vercel has no fixed IP).
+
 ## Next edition of the series
 
 Edit only the `event` block in `config.php` (new `slug`, title, speaker, date, fee) and replace

@@ -15,12 +15,17 @@ $action  = (string) ($_POST['action'] ?? '');
 $regCode = strtoupper(trim((string) ($_POST['reg_code'] ?? '')));
 
 // Only the browser that created the registration may update it
-$id = $_SESSION['regs'][$regCode] ?? null;
-if (!$id) {
-    json_out(['ok' => false, 'error' => 'Registration not found in this session. Please contact us with your registration ID.'], 403);
+if (!reg_token_ok($regCode, $_POST['token'] ?? null)) {
+    json_out(['ok' => false, 'error' => 'Registration not found. Please contact us with your registration ID.'], 403);
 }
 
 $pdo = db();
+$find = $pdo->prepare('SELECT id FROM registrations WHERE reg_code = ?');
+$find->execute([$regCode]);
+$id = (int) $find->fetchColumn();
+if (!$id) {
+    json_out(['ok' => false, 'error' => 'Registration not found.'], 404);
+}
 
 if ($action === 'razorpay_verify') {
     $orderId   = (string) ($_POST['razorpay_order_id'] ?? '');

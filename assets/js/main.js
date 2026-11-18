@@ -294,7 +294,7 @@
       handler: async (r) => {
         btn.classList.add('is-loading');
         const fd = new FormData();
-        fd.append('csrf', MM.csrf); fd.append('action', 'razorpay_verify'); fd.append('reg_code', res.reg_code);
+        fd.append('csrf', MM.csrf); fd.append('action', 'razorpay_verify'); fd.append('reg_code', res.reg_code); fd.append('token', res.token);
         fd.append('razorpay_order_id', r.razorpay_order_id);
         fd.append('razorpay_payment_id', r.razorpay_payment_id);
         fd.append('razorpay_signature', r.razorpay_signature);
@@ -307,7 +307,7 @@
     });
     rzp.on('payment.failed', () => {
       const fd = new FormData();
-      fd.append('csrf', MM.csrf); fd.append('action', 'razorpay_failed'); fd.append('reg_code', res.reg_code);
+      fd.append('csrf', MM.csrf); fd.append('action', 'razorpay_failed'); fd.append('reg_code', res.reg_code); fd.append('token', res.token);
       post('api/payment.php', fd);
     });
     rzp.open();
@@ -345,7 +345,7 @@
       const f = e.currentTarget, b = $('button', f), err = $('.field__err', f);
       b.classList.add('is-loading'); err.textContent = '';
       const fd = new FormData(f);
-      fd.append('csrf', MM.csrf); fd.append('action', 'upi_ref'); fd.append('reg_code', res.reg_code);
+      fd.append('csrf', MM.csrf); fd.append('action', 'upi_ref'); fd.append('reg_code', res.reg_code); fd.append('token', res.token);
       const r = await post('api/payment.php', fd);
       b.classList.remove('is-loading');
       if (r.ok) { form.reset(); openModal(successHTML(res.reg_code, true)); }

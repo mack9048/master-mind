@@ -3,21 +3,19 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/includes/bootstrap.php';
 
 $slug = cfg('event.slug');
+csrf_token(); // sets the CSRF cookie before any output
 
 /* ---------- Auth ---------- */
 if (isset($_GET['logout'])) {
-    unset($_SESSION['admin']);
+    admin_logout();
     header('Location: ./');
     exit;
 }
 
 $loginError = '';
-if (empty($_SESSION['admin'])) {
+if (!is_admin()) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-        $_SESSION['login_tries'] = ($_SESSION['login_tries'] ?? 0) + 1;
-        if ($_SESSION['login_tries'] > 8) {
-            sleep(2);
-        }
+        usleep(400000); // slow down password guessing
         $hash  = (string) cfg('admin.pass_hash', '');
         $plain = (string) cfg('admin.pass', '');
         $given = (string) ($_POST['pass'] ?? '');
@@ -26,9 +24,7 @@ if (empty($_SESSION['admin'])) {
             && ($hash !== '' || $plain !== '')
             && hash_equals((string) cfg('admin.user'), (string) ($_POST['user'] ?? ''))
             && $passOk) {
-            session_regenerate_id(true);
-            $_SESSION['admin'] = true;
-            $_SESSION['login_tries'] = 0;
+            admin_login();
             header('Location: ./');
             exit;
         }

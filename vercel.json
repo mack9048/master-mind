@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "api/*.php": { "runtime": "vercel-php@0.7.4" }
+  },
+  "routes": [
+    { "src": "^/(config\\.php|config\\.sample\\.php|database\\.sql|\\.htaccess|includes/.*|admin/index\\.php|index\\.php)$", "status": 404 },
+    { "src": "^/admin$", "status": 308, "headers": { "Location": "/admin/" } },
+    { "src": "^/admin/(\\?.*)?$", "dest": "/api/admin.php" },
+    { "src": "^/$", "dest": "/api/home.php" },
+    { "handle": "filesystem" }
+  ]
+}

@@ -137,8 +137,8 @@ try {
     json_out(['ok' => false, 'error' => 'Something went wrong while saving. Please try again or call ' . cfg('event.phone') . '.'], 500);
 }
 
-// Remember which registrations belong to this browser session (used by api/payment.php)
-$_SESSION['regs'][$regCode] = $id;
+// Signed token proving this browser created the registration (used by api/payment.php)
+$regToken = reg_token($regCode);
 
 if ($mode === 'razorpay') {
     try {
@@ -153,6 +153,7 @@ if ($mode === 'razorpay') {
         'ok'       => true,
         'mode'     => 'razorpay',
         'reg_code' => $regCode,
+        'token'    => $regToken,
         'razorpay' => [
             'key'         => cfg('payment.razorpay_key'),
             'order_id'    => $order['id'],
@@ -185,6 +186,7 @@ json_out([
     'ok'       => true,
     'mode'     => 'upi',
     'reg_code' => $regCode,
+    'token'    => $regToken,
     'upi'      => [
         'id'     => cfg('payment.upi_id'),
         'name'   => cfg('payment.upi_name'),

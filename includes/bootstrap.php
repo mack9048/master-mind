@@ -1,12 +1,36 @@
 <?php
 declare(strict_types=1);
 
+/*
+ * Config: config.php on normal hosting (Hostinger / cPanel).
+ * On Vercel (no config.php) the values come from Environment Variables, e.g.
+ * DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, UPI_ID, UPI_NAME, ADMIN_PASS, APP_SECRET, SEATS.
+ */
 $configFile = dirname(__DIR__) . '/config.php';
-if (!is_file($configFile)) {
-    http_response_code(500);
-    exit('Missing config.php – copy config.sample.php to config.php and fill in your database details.');
+$CONFIG = require (is_file($configFile) ? $configFile : dirname(__DIR__) . '/config.sample.php');
+
+$envMap = [
+    'DB_HOST' => ['db', 'host'], 'DB_PORT' => ['db', 'port'], 'DB_NAME' => ['db', 'name'],
+    'DB_USER' => ['db', 'user'], 'DB_PASS' => ['db', 'pass'],
+    'UPI_ID' => ['payment', 'upi_id'], 'UPI_NAME' => ['payment', 'upi_name'],
+    'ADMIN_USER' => ['admin', 'user'], 'ADMIN_PASS' => ['admin', 'pass'],
+    'SEATS' => ['event', 'seats'], 'APP_SECRET' => ['app_secret', null],
+];
+foreach ($envMap as $env => [$a, $b]) {
+    $v = getenv($env);
+    if ($v === false || $v === '') {
+        continue;
+    }
+    if ($b === null) {
+        $CONFIG[$a] = $v;
+    } else {
+        $CONFIG[$a][$b] = in_array($env, ['DB_PORT', 'SEATS'], true) ? (int) $v : $v;
+    }
 }
-$CONFIG = require $configFile;
+if (!is_file($configFile) && getenv('DB_HOST') === false) {
+    http_response_code(500);
+    exit('Missing configuration – create config.php (see config.sample.php) or set the DB_* environment variables.');
+}
 
 if (!empty($CONFIG['debug'])) {
     ini_set('display_errors', '1');
@@ -17,13 +41,40 @@ if (!empty($CONFIG['debug'])) {
 
 date_default_timezone_set('Asia/Kolkata');
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'httponly' => true,
+function is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+}
+
+/**
+ * Secret used to sign tokens/cookies. Works without PHP sessions, so the site
+ * also runs on serverless hosting (Vercel) where every request may hit a new server.
+ */
+function app_secret(): string
+{
+    $s = (string) cfg('app_secret', '');
+    if ($s === '') {
+        // Fallback: derive from the DB credentials (stable, private)
+        $s = hash('sha256', 'mastermind|' . cfg('db.pass') . '|' . cfg('db.user') . '|' . cfg('db.name'));
+    }
+    return $s;
+}
+
+function sign(string $data): string
+{
+    return hash_hmac('sha256', $data, app_secret());
+}
+
+function set_cookie(string $name, string $value, int $ttl, bool $httpOnly = true): void
+{
+    setcookie($name, $value, [
+        'expires'  => $ttl ? time() + $ttl : 0,
+        'path'     => '/',
+        'secure'   => is_https(),
+        'httponly' => $httpOnly,
         'samesite' => 'Lax',
-        'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
     ]);
-    session_start();
 }
 
 function cfg(string $path, $default = null)
@@ -60,17 +111,58 @@ function e($value): string
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/* CSRF: double-submit cookie (no server session needed) */
 function csrf_token(): string
 {
-    if (empty($_SESSION['csrf'])) {
-        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    static $token = null;
+    if ($token !== null) {
+        return $token;
     }
-    return $_SESSION['csrf'];
+    $c = $_COOKIE['mm_csrf'] ?? '';
+    if (is_string($c) && preg_match('/^[a-f0-9]{64}$/', $c)) {
+        return $token = $c;
+    }
+    $token = bin2hex(random_bytes(32));
+    set_cookie('mm_csrf', $token, 0);
+    return $token;
 }
 
 function csrf_check(?string $token): bool
 {
-    return is_string($token) && !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], $token);
+    $c = $_COOKIE['mm_csrf'] ?? '';
+    return is_string($token) && is_string($c) && $c !== '' && hash_equals($c, $token);
+}
+
+/* Signed proof that this browser created registration $regCode */
+function reg_token(string $regCode): string
+{
+    return sign('reg|' . $regCode);
+}
+
+function reg_token_ok(string $regCode, ?string $token): bool
+{
+    return is_string($token) && $regCode !== '' && hash_equals(reg_token($regCode), $token);
+}
+
+/* Admin login cookie: "<expiry>.<signature>" */
+function admin_login(): void
+{
+    $exp = time() + 12 * 3600;
+    set_cookie('mm_admin', $exp . '.' . sign('admin|' . $exp . '|' . cfg('admin.user') . '|' . cfg('admin.pass') . cfg('admin.pass_hash')), 12 * 3600);
+}
+
+function admin_logout(): void
+{
+    set_cookie('mm_admin', '', -3600);
+}
+
+function is_admin(): bool
+{
+    $c = (string) ($_COOKIE['mm_admin'] ?? '');
+    if (!preg_match('/^(\d+)\.([a-f0-9]{64})$/', $c, $m) || (int) $m[1] < time()) {
+        return false;
+    }
+    return hash_equals(sign('admin|' . $m[1] . '|' . cfg('admin.user') . '|' . cfg('admin.pass') . cfg('admin.pass_hash')), $m[2]);
 }
 
 function json_out(array $data, int $status = 200): void
