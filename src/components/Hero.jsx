@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { EVENT, waLink } from '../config.js';
+import { EVENT } from '../config.js';
 import { reduceMotion } from '../hooks.js';
 import PixelTitle from './PixelTitle.jsx';
 import Countdown from './Countdown.jsx';
@@ -63,8 +63,7 @@ export default function Hero({ status }) {
           </ul>
 
           <div className="hero__cta">
-            <a href="#register" className="btn btn--primary btn--lg">Book your seat <span className="btn__price">₹{EVENT.fee}</span></a>
-            <a href={waLink(`Hi, I want to know more about Master Mind – ${EVENT.title}`)} className="btn btn--ghost" target="_blank" rel="noopener noreferrer">Ask on WhatsApp</a>
+            <a href="#register" className="btn btn--primary btn--lg">Book your seat</a>
           </div>
         </div>
 
