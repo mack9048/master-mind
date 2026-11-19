@@ -38,9 +38,6 @@ export default function Hero({ status }) {
 
   return (
     <section className="hero">
-      <div className="hero__frame hero__frame--a" aria-hidden="true" />
-      <div className="hero__frame hero__frame--b" aria-hidden="true" />
-      <div className="hero__frame hero__frame--c" aria-hidden="true" />
 
       <div className="wrap hero__grid">
         <div className="hero__copy">
