@@ -20,7 +20,6 @@ export const EVENT = {
   phone: '+91 90724 83502',
   whatsapp: '919072483502',
   website: 'https://school.macadz.com',
-  taglineMl: 'ബ്രാൻഡുകളുടെ പിന്നിലെ രഹസ്യം അറിയാം!',
 };
 
 export const LEARN = [

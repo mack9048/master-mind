@@ -58,7 +58,6 @@ export default function Hero({ status }) {
             </svg>
           </h1>
           <p className="hero__with">with <strong>{EVENT.speaker}</strong></p>
-          <p className="hero__ml" lang="ml">{EVENT.taglineMl}</p>
 
           <ul className="hero__meta">
             <li>{Icon.cal}{EVENT.dateLabel}</li>
