@@ -33,6 +33,6 @@ Current edition: **Favour Your Brand** — Branding Masterclass with Favour Fran
 | `GET  /api/event.php` | seats left, registration open |
 | `POST /api/register.php` | name, phone, email, city, profession, organization, expectation → `reg_code`, `token`, UPI details |
 | `POST /api/payment.php` | `action=upi_ref`, `reg_code`, `token`, `payment_ref` (UTR) |
-| `/admin/` | registrations, mark paid / cancelled / attended, CSV export |
+| `/admin/` | dashboard: stats, verify UPI payments (UTR), edit / add / cancel / delete bookings, WhatsApp confirmation, check-in, CSV export |
 
 Registrations are stored per `event.slug`, so future Master Mind editions share the same table.
