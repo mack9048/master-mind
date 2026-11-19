@@ -34,7 +34,7 @@ export default function Countdown({ status }) {
   return (
     <div className="wrap">
       <div className={`countdown${t.live ? ' is-live' : ''}`}>
-        <a href="#register" className="countdown__cta">Book your seat · ₹{EVENT.fee}</a>
+        <a href="#register" className="countdown__cta">Book your seat</a>
         {t.live ? (
           <div className="countdown__units">The workshop is live — see you at the venue!</div>
         ) : (
