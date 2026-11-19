@@ -87,7 +87,7 @@ function PayStep({ reg, onPaid }) {
         <Field id="utr" label="UPI transaction / UTR number" error={err}>
           <input id="utr" value={utr} onChange={(e) => setUtr(e.target.value)} inputMode="numeric" autoComplete="off" required maxLength={40} placeholder="12-digit UTR" autoFocus />
         </Field>
-        <button className={`btn btn--pink btn--block${busy ? ' is-loading' : ''}`} type="submit">
+        <button className={`btn btn--primary btn--block${busy ? ' is-loading' : ''}`} type="submit">
           <span className="btn__label">Confirm payment</span><span className="btn__spin" />
         </button>
       </form>
@@ -105,7 +105,7 @@ function Done({ code, onClose }) {
       <p>Save this registration ID and show it at the venue.<br />{EVENT.dateLabel} · {EVENT.timeLabel}</p>
       <div className="stack">
         <a className="btn btn--ghost" href={waLink(`Hi, I registered for Master Mind. My registration ID is ${code}`)} target="_blank" rel="noopener noreferrer">Share ID on WhatsApp</a>
-        <button className="btn btn--pink" type="button" onClick={onClose}>Done</button>
+        <button className="btn btn--primary" type="button" onClick={onClose}>Done</button>
       </div>
     </>
   );
@@ -216,7 +216,7 @@ export default function Register({ status }) {
 
               <div className="form__foot">
                 <div className="form__total"><span>Total</span><strong>₹{EVENT.fee}</strong></div>
-                <button type="submit" className={`btn btn--pink btn--lg btn--block${busy ? ' is-loading' : ''}`}>
+                <button type="submit" className={`btn btn--primary btn--lg btn--block${busy ? ' is-loading' : ''}`}>
                   <span className="btn__label">Register Now</span><span className="btn__spin" aria-hidden="true" />
                 </button>
                 {msg && <p className="form__msg" role="alert">{msg}</p>}

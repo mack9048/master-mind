@@ -66,7 +66,7 @@ export default function Hero({ status }) {
           </ul>
 
           <div className="hero__cta">
-            <a href="#register" className="btn btn--pink btn--lg">Book your seat <span className="btn__price">₹{EVENT.fee}</span></a>
+            <a href="#register" className="btn btn--primary btn--lg">Book your seat <span className="btn__price">₹{EVENT.fee}</span></a>
             <a href={waLink(`Hi, I want to know more about Master Mind – ${EVENT.title}`)} className="btn btn--ghost" target="_blank" rel="noopener noreferrer">Ask on WhatsApp</a>
           </div>
         </div>
