@@ -261,9 +261,16 @@ body.menu-open { overflow: hidden; }
 
 /* Speaker */
 .speaker { display: grid; grid-template-columns: .85fr 1.15fr; gap: clamp(32px, 6vw, 80px); align-items: center; }
-.speaker__photo { position: relative; border-radius: 18px; overflow: hidden; background: #000; }
-.speaker__photo img { width: 100%; aspect-ratio: 4/5; object-fit: cover; object-position: top; }
-.speaker__tag { position: absolute; left: 26px; bottom: 26px; padding: .4em .8em; border-radius: 6px; background: var(--green); color: #102010; font: 700 .8rem var(--ff-pixel); text-transform: uppercase; }
+.speaker__photo { position: relative; }
+.speaker__photo img {
+  width: 100%; height: auto; aspect-ratio: 4/5; object-fit: cover; object-position: top;
+  mix-blend-mode: lighten; /* photo's black background disappears into the section */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 12%, #000 72%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 12%, #000 72%, transparent 100%);
+  mask-composite: intersect;
+}
+.speaker__tag { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); white-space: nowrap; padding: .4em .8em; border-radius: 6px; background: var(--green); color: #102010; font: 700 .8rem var(--ff-pixel); text-transform: uppercase; }
 .speaker__name { font-size: clamp(2.6rem, 6vw, 4.8rem); font-weight: 600; }
 .speaker__role { margin-top: 10px; font-size: 1.15rem; color: var(--yellow); }
 .speaker__series { display: flex; gap: 18px; align-items: center; margin-top: 32px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
