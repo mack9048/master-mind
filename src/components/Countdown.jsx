@@ -29,26 +29,26 @@ export default function Countdown({ status }) {
     return () => clearInterval(id);
   }, [target]);
 
+  const seats = status?.seats > 0 && status.seats_left != null ? status : null;
+
   return (
     <div className="wrap">
       <div className={`countdown${t.live ? ' is-live' : ''}`}>
-        <div className="countdown__label">
-          <span className="countdown__kicker">{t.live ? 'The workshop is live' : 'Workshop starts in'}</span>
-          <span className="countdown__date">{EVENT.dateLabel} · {EVENT.timeLabel}</span>
-        </div>
+        <a href="#register" className="countdown__cta">Book your seat · ₹{EVENT.fee}</a>
         {t.live ? (
-          <div className="countdown__units">See you at the venue!</div>
+          <div className="countdown__units">The workshop is live — see you at the venue!</div>
         ) : (
-          <div className="countdown__units" role="timer">
+          <div className="countdown__units" role="timer" aria-label="Time until the workshop starts">
             <Unit value={t.d} label="Days" />
             <Unit value={t.h} label="Hours" />
-            <Unit value={t.m} label="Minutes" />
-            <Unit value={t.s} label="Seconds" />
+            <Unit value={t.m} label="Mins" />
+            <Unit value={t.s} label="Secs" />
           </div>
         )}
-        {status?.seats > 0 && status.seats_left != null && (
-          <div className="countdown__seats"><strong>{status.seats_left}</strong> of {status.seats} seats left</div>
-        )}
+        <p className="countdown__meta">
+          {EVENT.dateLabel} · {EVENT.timeLabel}
+          {seats && <> · <strong>{seats.seats_left}</strong> seats left</>}
+        </p>
       </div>
     </div>
   );

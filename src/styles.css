@@ -210,23 +210,32 @@ body.menu-open { overflow: hidden; }
 
 /* Countdown */
 .countdown {
+  --cd: #7d0a83;
   position: relative; z-index: 3;
-  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px;
-  margin-top: 20px; padding: 22px 28px;
-  border-radius: var(--r); background: var(--red); color: #fff;
-  box-shadow: 0 30px 60px -30px rgba(239,79,87,.6);
+  display: grid; justify-items: center; gap: 18px;
+  width: min(760px, 100%); margin: 56px auto 0; padding: 62px clamp(16px, 4vw, 48px) 38px;
+  border-radius: 44px; background: var(--cd); color: #fff;
+  box-shadow: 0 30px 70px -30px rgba(125, 10, 131, .8);
 }
-.countdown__label { display: grid; }
-.countdown__kicker { font-weight: 700; font-size: 1.1rem; }
-.countdown__date { font-size: .9rem; opacity: .85; }
-.countdown__units { display: flex; justify-content: center; gap: clamp(8px, 2vw, 22px); }
-.cd { display: grid; justify-items: center; min-width: 70px; }
-.cd__n { font: 700 clamp(2rem, 4.6vw, 3.4rem)/1 var(--ff); font-variant-numeric: tabular-nums; letter-spacing: -.03em; color: var(--yellow); }
+.countdown__cta {
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+  padding: 1.05em 2.4em; border-radius: 999px; white-space: nowrap;
+  background: var(--cta); color: #111; font: 800 clamp(.9rem, 2.2vw, 1.15rem)/1 var(--ff); letter-spacing: .04em; text-transform: uppercase;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .5); transition: transform .2s, background .2s;
+}
+.countdown__cta:hover { transform: translate(-50%, -50%) scale(1.04); background: #ffd43a; }
+.countdown__units { display: flex; justify-content: center; gap: clamp(10px, 3vw, 26px); }
+.cd {
+  display: grid; justify-items: center; align-content: center;
+  width: clamp(70px, 14vw, 112px); aspect-ratio: 1 / 1; border-radius: clamp(14px, 2.4vw, 20px);
+  background: #fff; color: var(--cd); box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .5);
+}
+.cd__n { font: 800 clamp(1.9rem, 5vw, 3.2rem)/1 var(--ff); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .cd__n.tick { animation: tick .45s cubic-bezier(.2,.7,.2,1); }
 @keyframes tick { from { transform: translateY(-35%); opacity: 0; } }
-.cd__l { margin-top: 6px; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; opacity: .9; }
-.countdown__seats { padding: .5em .9em; border-radius: 8px; background: rgba(0,0,0,.18); font-size: .9rem; white-space: nowrap; }
-.countdown__seats strong { color: var(--yellow); }
+.cd__l { margin-top: 8px; font-size: clamp(.58rem, 1.4vw, .7rem); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #b26fb6; }
+.countdown__meta { font-size: .9rem; opacity: .85; text-align: center; }
+.countdown__meta strong { color: var(--cta); }
 .countdown.is-live .countdown__units { font-size: 1.4rem; font-weight: 700; }
 
 /* ---------- Marquee ---------- */
@@ -452,8 +461,6 @@ body.menu-open { overflow: hidden; }
   .hero__grid { grid-template-columns: 1fr; }
   .hero__visual { justify-self: center; width: min(100%, 440px); margin-top: 8px; margin-bottom: -90px; }
   .pixel { margin-top: 0; }
-  .countdown { grid-template-columns: 1fr; text-align: center; gap: 16px; }
-  .countdown__seats { justify-self: center; }
   .cards { grid-template-columns: 1fr 1fr; }
   .speaker, .reg { grid-template-columns: 1fr; }
   .speaker__photo { max-width: 460px; }
@@ -470,8 +477,8 @@ body.menu-open { overflow: hidden; }
   .eyebrow { font-size: .74rem; }
   .hero__badge { left: 0; bottom: 18%; }
   .hero__visual { margin-bottom: -60px; }
-  .countdown { padding: 20px 14px; }
-  .cd { min-width: 0; }
+  .countdown { border-radius: 30px; padding-top: 54px; margin-top: 48px; }
+  .countdown__cta { padding: 1em 1.6em; }
   .cards { grid-template-columns: 1fr; }
   .hero__cta { display: none; } /* header + sticky button cover booking on phones */
   .row, .book__row { grid-template-columns: 1fr; }
