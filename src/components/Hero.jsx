@@ -62,9 +62,6 @@ export default function Hero({ status }) {
             <li>{Icon.pin}{EVENT.venue}</li>
           </ul>
 
-          <div className="hero__cta">
-            <a href="#register" className="btn btn--primary btn--lg">Book your seat</a>
-          </div>
         </div>
 
         <div className="hero__visual">
