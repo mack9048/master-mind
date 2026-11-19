@@ -473,6 +473,7 @@ body.menu-open { overflow: hidden; }
   .countdown { padding: 20px 14px; }
   .cd { min-width: 0; }
   .cards { grid-template-columns: 1fr; }
+  .hero__cta { display: none; } /* header + sticky button cover booking on phones */
   .row, .book__row { grid-template-columns: 1fr; }
   .chips { grid-template-columns: 1fr 1fr; }
   .btn--white { letter-spacing: .14em; }
