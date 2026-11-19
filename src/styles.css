@@ -172,9 +172,16 @@ body.menu-open { overflow: hidden; }
 .hero__with { font-size: clamp(1.25rem, 2.2vw, 1.75rem); color: var(--text); }
 .hero__with strong { font-weight: 600; }
 
-.hero__meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 0; padding: 0; list-style: none; }
-.hero__meta li { display: inline-flex; align-items: center; gap: .5em; padding: .5em .85em; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--line); font-size: .92rem; }
-.hero__meta svg { width: 17px; height: 17px; fill: none; stroke: var(--yellow); stroke-width: 2; stroke-linecap: round; }
+.hero__meta { display: flex; flex-wrap: nowrap; align-items: center; gap: 0; margin: 34px 0 0; white-space: nowrap; padding: 0; list-style: none; }
+.hero__meta li { display: flex; align-items: center; gap: 12px; padding: 0 clamp(14px, 1.6vw, 24px); }
+.hero__meta li:first-child { padding-left: 0; }
+.hero__meta li + li { border-left: 1px solid rgba(255, 255, 255, .14); }
+.meta__ic { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .08); }
+.meta__ic svg { width: 21px; height: 21px; fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.meta__tx { display: grid; gap: 4px; line-height: 1.05; }
+.meta__tx b { font-size: clamp(1.05rem, 1.5vw, 1.3rem); font-weight: 800; letter-spacing: -.02em; }
+.meta__tx small { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #9a9aa2; }
+a.meta__tx:hover small { color: var(--cta); }
 .hero__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 
 .hero__visual { position: relative; align-self: end; justify-self: end; width: min(100%, 540px); margin-bottom: -170px; }
@@ -480,6 +487,10 @@ body.menu-open { overflow: hidden; }
   .countdown { border-radius: 30px; padding-top: 54px; margin-top: 48px; }
   .countdown__cta { padding: 1em 1.6em; }
   .cards { grid-template-columns: 1fr; }
+  .hero__meta { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .hero__meta li, .hero__meta li:first-child { padding: 0; }
+  .hero__meta li + li { border-left: 0; }
+  .meta__ic { width: 44px; height: 44px; }
   .row, .book__row { grid-template-columns: 1fr; }
   .chips { grid-template-columns: 1fr 1fr; }
   .btn--white { letter-spacing: .14em; }

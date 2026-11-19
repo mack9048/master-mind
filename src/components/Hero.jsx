@@ -57,9 +57,18 @@ export default function Hero({ status }) {
           <p className="hero__with">with <strong>{EVENT.speaker}</strong></p>
 
           <ul className="hero__meta">
-            <li>{Icon.cal}{EVENT.dateLabel}</li>
-            <li>{Icon.clock}{EVENT.timeLabel}</li>
-            <li>{Icon.pin}{EVENT.venue}</li>
+            <li>
+              <span className="meta__ic">{Icon.cal}</span>
+              <span className="meta__tx"><b>{EVENT.dayShortMd}</b><small>{EVENT.weekday}</small></span>
+            </li>
+            <li>
+              <span className="meta__ic">{Icon.clock}</span>
+              <span className="meta__tx"><b>{EVENT.timeLabel}</b><small>Starts at</small></span>
+            </li>
+            <li>
+              <span className="meta__ic">{Icon.pin}</span>
+              <a className="meta__tx" href={EVENT.venueMap} target="_blank" rel="noopener noreferrer"><b>{EVENT.venue}</b><small>Open in Maps</small></a>
+            </li>
           </ul>
 
         </div>

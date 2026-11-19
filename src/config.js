@@ -12,6 +12,8 @@ export const EVENT = {
   startsAt: '2026-11-26T10:30:00+05:30',
   dateLabel: 'Thursday, 26 November 2026',
   dayShort: '26 Nov',
+  dayShortMd: 'Nov 26',
+  weekday: 'Thursday',
   yearLabel: 'Thursday, 2026',
   timeLabel: '10:30 AM',
   venue: 'MAC Media School',
