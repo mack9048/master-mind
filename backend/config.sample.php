@@ -18,8 +18,8 @@ return [
     'db' => [
         'host'    => 'localhost',      // on Hostinger / cPanel this is usually "localhost"
         'port'    => 3306,
-        'name'    => 'u455934768_master',      // database name from hPanel
-        'user'    => 'u455934768_mastermind',
+        'name'    => 'u455934768_class',      // database name from hPanel
+        'user'    => 'u455934768_class',
         'pass'    => 'PUT_YOUR_DB_PASSWORD_HERE',
         'charset' => 'utf8mb4',
     ],

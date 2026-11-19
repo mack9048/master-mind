@@ -19,7 +19,7 @@ Current edition: **Favour Your Brand** — Branding Masterclass with Favour Fran
 1. Upload the **contents** of `backend/` to `public_html` of class.macadz.com.
 2. hPanel → Databases: create the database, then import `backend/database.sql` in phpMyAdmin.
 3. Copy `config.sample.php` → `config.php` and fill in:
-   - `db.pass` (name/user are pre-filled for `u455934768_master` / `u455934768_mastermind`)
+   - `db.pass` (name/user are pre-filled for `u455934768_class` / `u455934768_class`)
    - `frontend_url` — your Vercel URL (and any custom domain in `allowed_origins`); the API only accepts requests from these sites
    - `app_secret` — any long random text
    - `admin.pass` — password for `/admin`
