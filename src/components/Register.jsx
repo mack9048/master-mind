@@ -4,7 +4,7 @@ import { EVENT, PROFESSIONS, telLink, waLink } from '../config.js';
 import { postForm } from '../hooks.js';
 import { Reveal } from './Sections.jsx';
 
-const EMPTY = { name: '', phone: '', email: '', city: '', profession: '', organization: '', expectation: '', website: '' };
+const EMPTY = { name: '', phone: '', email: '', profession: '', website: '' };
 
 function validate(f) {
   const e = {};
@@ -12,18 +12,19 @@ function validate(f) {
   const ph = f.phone.replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '');
   if (!/^[6-9]\d{9}$/.test(ph)) e.phone = 'Enter a valid 10-digit mobile number.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) e.email = 'Enter a valid email.';
-  if (f.city.trim().length < 2) e.city = 'Enter your city / place.';
-  if (!f.profession) e.profession = 'Choose one.';
+  if (!f.profession) e.profession = 'Choose your current status.';
   return e;
 }
 
-function Field({ id, label, optional, error, children }) {
+function Field({ id, label, optional, required, error, children, as: Tag = 'div' }) {
   return (
-    <div className={`field${error ? ' has-err' : ''}`}>
-      <label htmlFor={id}>{label} {optional && <span className="opt">optional</span>}</label>
+    <Tag className={`field${error ? ' has-err' : ''}`}>
+      {Tag === 'fieldset'
+        ? <legend>{label}{required && <i className="req">*</i>}</legend>
+        : <label htmlFor={id}>{label}{required && <i className="req">*</i>} {optional && <span className="opt">optional</span>}</label>}
       {children}
       {error && <small className="field__err">{error}</small>}
-    </div>
+    </Tag>
   );
 }
 
@@ -156,72 +157,56 @@ export default function Register({ status }) {
     if (paid) { setF(EMPTY); setReg(null); setPaid(false); } else setReg(null);
   };
 
+  const seatsNote = seatsLeft != null && !soldOut ? ` — ${seatsLeft} seats left` : ' — Limited seats';
+
   return (
     <section className="section section--register" id="register">
-      <div className="wrap reg">
-        <Reveal className="reg__info">
-          <p className="kicker">Booking</p>
-          <h2 className="section__title">Reserve your seat <span className="serif">for ₹{EVENT.fee}.</span></h2>
-          <p className="section__lead">Fill in your details and pay by UPI. Your registration ID confirms your seat — keep it handy on the day.</p>
-          <ul className="reg__points">
-            <li>Seats are limited and confirmed on payment</li>
-            <li>Pay instantly by scanning the UPI QR code</li>
-            <li>Questions? Call <a className="link" href={telLink}>{EVENT.phone}</a></li>
-          </ul>
-          {seatsLeft != null && !soldOut && (
-            <div className="seatbar" style={{ '--fill': `${Math.round(100 * (1 - seatsLeft / Math.max(1, status.seats)))}%` }}>
-              <div className="seatbar__track"><span /></div>
-              <p><strong>{seatsLeft}</strong> seats left</p>
-            </div>
-          )}
+      <div className="wrap book">
+        <Reveal className="book__head">
+          <p className="book__badge"><span className="dot dot--y" />₹{EVENT.fee} ticket{seatsNote}</p>
+          <h2 className="book__title">Secure your<br /><em>Brand</em> seat today.</h2>
+          <p className="book__sub">{EVENT.dateLabel} · {EVENT.timeLabel} · {EVENT.venue}</p>
         </Reveal>
 
-        <Reveal className="reg__card">
+        <Reveal className="book__card">
           {closed ? (
             <div className="reg__closed"><h3>Registrations closed</h3><p>This edition has started. Follow MAC Media School for the next Master Mind.</p></div>
           ) : soldOut ? (
             <div className="reg__closed"><h3>Houseful!</h3><p>All seats are booked. Message us on <a className="link" href={waLink('Hi, please add me to the Master Mind waitlist')} target="_blank" rel="noopener noreferrer">WhatsApp</a> to join the waitlist.</p></div>
           ) : (
-            <form ref={formRef} className="form" onSubmit={submit} noValidate>
+            <form ref={formRef} className="book__form" onSubmit={submit} noValidate>
               <div className="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabIndex={-1} autoComplete="off" value={f.website} onChange={set('website')} /></label></div>
 
-              <Field id="f-name" label="Full name" error={errors.name}>
-                <input id="f-name" name="name" type="text" autoComplete="name" maxLength={120} value={f.name} onChange={set('name')} />
-              </Field>
-              <div className="row">
-                <Field id="f-phone" label="Mobile (WhatsApp)" error={errors.phone}>
-                  <div className="phone"><span>+91</span><input id="f-phone" name="phone" type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={14} placeholder="98XXXXXXXX" value={f.phone} onChange={set('phone')} /></div>
+              <div className="book__row">
+                <Field id="f-name" label="Full name" required error={errors.name}>
+                  <input id="f-name" name="name" type="text" autoComplete="name" maxLength={120} placeholder="Enter your name" value={f.name} onChange={set('name')} />
                 </Field>
-                <Field id="f-email" label="Email" error={errors.email}>
-                  <input id="f-email" name="email" type="email" autoComplete="email" maxLength={160} value={f.email} onChange={set('email')} />
+                <Field id="f-phone" label="Phone number" required error={errors.phone}>
+                  <div className="phone"><span>+91</span><input id="f-phone" name="phone" type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={14} placeholder="00000 00000" value={f.phone} onChange={set('phone')} /></div>
                 </Field>
               </div>
-              <div className="row">
-                <Field id="f-city" label="City / Place" error={errors.city}>
-                  <input id="f-city" name="city" type="text" autoComplete="address-level2" maxLength={80} value={f.city} onChange={set('city')} />
-                </Field>
-                <Field id="f-prof" label="You are a" error={errors.profession}>
-                  <select id="f-prof" name="profession" value={f.profession} onChange={set('profession')}>
-                    <option value="">Choose one</option>
-                    {PROFESSIONS.map((p) => <option key={p}>{p}</option>)}
-                  </select>
+              <div className="book__row">
+                <Field id="f-email" label="Email address" required error={errors.email}>
+                  <input id="f-email" name="email" type="email" autoComplete="email" maxLength={160} placeholder="name@example.com" value={f.email} onChange={set('email')} />
                 </Field>
               </div>
-              <Field id="f-org" label="College / Company" optional error={errors.organization}>
-                <input id="f-org" name="organization" type="text" maxLength={160} value={f.organization} onChange={set('organization')} />
-              </Field>
-              <Field id="f-exp" label="What do you want to learn?" optional error={errors.expectation}>
-                <textarea id="f-exp" name="expectation" rows={3} maxLength={1000} value={f.expectation} onChange={set('expectation')} />
+
+              <Field as="fieldset" label="Current status" required error={errors.profession}>
+                <div className="chips" role="radiogroup">
+                  {PROFESSIONS.map((p) => (
+                    <label key={p} className={`chip${f.profession === p ? ' is-on' : ''}`}>
+                      <input type="radio" name="profession" value={p} checked={f.profession === p} onChange={set('profession')} />
+                      {p}
+                    </label>
+                  ))}
+                </div>
               </Field>
 
-              <div className="form__foot">
-                <div className="form__total"><span>Total</span><strong>₹{EVENT.fee}</strong></div>
-                <button type="submit" className={`btn btn--primary btn--lg btn--block${busy ? ' is-loading' : ''}`}>
-                  <span className="btn__label">Register Now</span><span className="btn__spin" aria-hidden="true" />
-                </button>
-                {msg && <p className="form__msg" role="alert">{msg}</p>}
-                <p className="form__note">By registering you agree to be contacted about this workshop on WhatsApp / phone.</p>
-              </div>
+              <button type="submit" className={`btn btn--white btn--block book__submit${busy ? ' is-loading' : ''}`}>
+                <span className="btn__label">Continue to payment · ₹{EVENT.fee}</span><span className="btn__spin" aria-hidden="true" />
+              </button>
+              {msg && <p className="form__msg" role="alert">{msg}</p>}
+              <p className="book__note">Pay by UPI QR on the next step · Questions? <a className="link" href={telLink}>{EVENT.phone}</a></p>
             </form>
           )}
         </Reveal>

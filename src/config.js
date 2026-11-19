@@ -31,7 +31,7 @@ export const LEARN = [
   ['Q&A with the expert', `Bring your brand questions — get direct answers from ${'Favour Francis'}.`],
 ];
 
-export const PROFESSIONS = ['Student', 'Designer', 'Marketer', 'Entrepreneur', 'Business Owner', 'Working Professional', 'Other'];
+export const PROFESSIONS = ['Student', 'Designer', 'Marketer', 'Business Owner', 'Professional', 'Others'];
 
 export const waLink = (text) => `https://wa.me/${EVENT.whatsapp}?text=${encodeURIComponent(text)}`;
 export const telLink = `tel:${EVENT.phone.replace(/\s+/g, '')}`;

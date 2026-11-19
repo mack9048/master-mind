@@ -15,7 +15,8 @@ if (!registration_open()) {
 }
 
 /* ---------- Validate ---------- */
-$professions = ['Student', 'Designer', 'Marketer', 'Entrepreneur', 'Business Owner', 'Working Professional', 'Other'];
+$professions = ['Student', 'Designer', 'Marketer', 'Business Owner', 'Professional', 'Others',
+                'Entrepreneur', 'Working Professional', 'Other'];
 
 $name        = trim(preg_replace('/\s+/u', ' ', (string) ($_POST['name'] ?? '')));
 $email       = strtolower(trim((string) ($_POST['email'] ?? '')));
@@ -42,11 +43,11 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 160) {
 if (!preg_match('/^[6-9]\d{9}$/', $phoneRaw)) {
     $errors['phone'] = 'Please enter a valid 10-digit mobile number.';
 }
-if (mb_strlen($city) < 2 || mb_strlen($city) > 80) {
-    $errors['city'] = 'Please enter your city / place.';
+if (mb_strlen($city) > 80) {
+    $errors['city'] = 'Too long.';
 }
 if (!in_array($profession, $professions, true)) {
-    $errors['profession'] = 'Please choose what describes you best.';
+    $errors['profession'] = 'Please choose your current status.';
 }
 if (mb_strlen($org) > 160) {
     $errors['organization'] = 'Too long.';
@@ -94,7 +95,7 @@ try {
     $fields = [
         'name'         => $name,
         'email'        => $email,
-        'city'         => $city,
+        'city'         => $city !== '' ? $city : null,
         'profession'   => $profession,
         'organization' => $org !== '' ? $org : null,
         'expectation'  => $expectation !== '' ? $expectation : null,
