@@ -9,9 +9,9 @@
 return [
 
     /* ---------- React frontend (Vercel) ---------- */
-    'frontend_url'    => 'https://master-mind-sable-nine.vercel.app',
-    // Other sites allowed to call this API (your custom domain, local dev …)
-    'allowed_origins' => ['http://localhost:5173'],
+    'frontend_url'    => 'https://class.macadz.com',
+    // Other sites allowed to call this API (Vercel URL, local dev …)
+    'allowed_origins' => ['https://master-mind-sable-nine.vercel.app', 'http://localhost:5173'],
     'app_secret'      => '',   // any long random text – signs tokens & admin cookie
 
     /* ---------- MySQL database ---------- */
