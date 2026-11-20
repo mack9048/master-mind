@@ -57,6 +57,16 @@ return [
         'upi_name' => 'MAC Media School',
     ],
 
+    /* ---------- Razorpay online payment ----------
+     * Fill both to send students straight to Razorpay Checkout.
+     * (Alternatively put RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in a .env file.)
+     * Leave empty to use the UPI QR flow instead.
+     */
+    'razorpay' => [
+        'key_id'     => '',
+        'key_secret' => '',
+    ],
+
     /* ---------- Admin panel (/admin) ---------- */
     'admin' => [
         'user' => 'admin',

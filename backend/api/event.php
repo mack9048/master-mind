@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 // Public event info for the React frontend: live seat count + registration status.
 require dirname(__DIR__) . '/includes/bootstrap.php';
+require dirname(__DIR__) . '/includes/razorpay.php';
 
 api_begin('GET');
 header('Cache-Control: public, max-age=30');
@@ -21,6 +22,9 @@ try {
 json_out([
     'ok'        => true,
     'database'  => $dbStatus,
+    'payment'   => razorpay_enabled()
+        ? 'razorpay (' . (str_starts_with(razorpay_key_id(), 'rzp_live_') ? 'LIVE' : 'test') . ' mode)'
+        : 'upi – Razorpay keys not found (add them to config.php or .env)',
     'slug'      => cfg('event.slug'),
     'title'     => cfg('event.title'),
     'starts_at' => cfg('event.starts_at'),
