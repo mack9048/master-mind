@@ -1,6 +1,6 @@
 // Content for the current edition of the Master Mind series.
 // Change this file (and the photo in public/img) for the next edition.
-export const API_URL = (import.meta.env.VITE_API_URL || 'https://classapi.macadz.com').replace(/\/$/, '');
+export const API_URL = (import.meta.env.VITE_API_URL || 'https://apiclass.macadz.com').replace(/\/$/, '');
 
 export const EVENT = {
   series: 'Master Mind',
