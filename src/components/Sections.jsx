@@ -20,6 +20,34 @@ export function Marquee() {
   );
 }
 
+const CARD_COLORS = [
+  ['#ff5f8f', '#ffb347'], // pink → orange
+  ['#3d8bff', '#22d3ee'], // blue → cyan
+  ['#a855f7', '#f472b6'], // purple → pink
+  ['#f9c816', '#ff7a18'], // yellow → orange
+  ['#22c55e', '#2dd4bf'], // green → teal
+  ['#6366f1', '#38bdf8'], // indigo → sky
+];
+
+const svg = (d) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+);
+const CARD_ICONS = [
+  svg(<><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></>),            // target
+  svg(<><circle cx="8" cy="15" r="4" /><path d="M10.8 12.2 20 3M16 7l3 3M18 5l2 2" /></>),                                  // key
+  svg(<><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.8 1.5-1.6 0-1.3-1-1.6-1-2.9 0-1 .8-1.5 1.8-1.5H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="15" cy="7.5" r="1" /></>), // palette
+  svg(<><path d="M4 5h16v11H8l-4 4V5Z" /><path d="M8 9h8M8 12h5" /></>),                                                     // story
+  svg(<><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 13 9 5 9-5" /></>),                                                  // layers
+  svg(<><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>),                     // mic
+];
+
+/** Moves the card's glow to follow the pointer */
+function spotlight(e) {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+}
+
 export function Learn() {
   return (
     <section className="section" id="learn">
@@ -30,13 +58,23 @@ export function Learn() {
           <p className="section__lead">A hands-on branding masterclass for students, designers, marketers and business owners — what makes people choose one brand over another, and how to build one that earns that choice.</p>
         </Reveal>
         <div className="cards">
-          {LEARN.map(([title, text], i) => (
-            <Reveal as="article" className="card" key={title}>
-              <span className="card__n">{String(i + 1).padStart(2, '0')}</span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </Reveal>
-          ))}
+          {LEARN.map(([title, text], i) => {
+            const [c1, c2] = CARD_COLORS[i % CARD_COLORS.length];
+            return (
+              <Reveal
+                as="article"
+                className="card"
+                key={title}
+                style={{ '--c1': c1, '--c2': c2 }}
+                onPointerMove={spotlight}
+              >
+                <span className="card__num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                <span className="card__icon" aria-hidden="true">{CARD_ICONS[i % CARD_ICONS.length]}</span>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </section>
