@@ -75,6 +75,44 @@ function razorpay_create_order(int $amountPaise, string $receipt, array $notes =
     return $data;
 }
 
+/** Where the keys were loaded from (for diagnostics – never returns the secret). */
+function razorpay_key_source(): string
+{
+    if (getenv('RAZORPAY_KEY_ID') !== false && getenv('RAZORPAY_KEY_ID') !== '') {
+        return is_file(dirname(__DIR__) . '/.env') ? '.env file' : 'environment variable';
+    }
+    return razorpay_key_id() !== '' ? 'config.php' : 'none';
+}
+
+/** Ask Razorpay whether the key pair is valid (GET /v1/orders?count=1). */
+function razorpay_check_keys(): string
+{
+    if (!razorpay_enabled()) {
+        return 'no keys';
+    }
+    $base = rtrim((string) (getenv('RAZORPAY_API_BASE') ?: 'https://api.razorpay.com'), '/');
+    $ch = curl_init($base . '/v1/orders?count=1');
+    curl_setopt_array($ch, [
+        CURLOPT_USERPWD        => razorpay_key_id() . ':' . razorpay_key_secret(),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+    ]);
+    $body   = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err    = curl_error($ch);
+    curl_close($ch);
+    if ($body === false) {
+        return 'could not reach Razorpay (' . $err . ')';
+    }
+    if ($status === 200) {
+        return 'OK – Razorpay accepted the keys';
+    }
+    if ($status === 401) {
+        return 'REJECTED – Key ID and Key Secret do not match (regenerate test keys and paste both again)';
+    }
+    return 'unexpected answer from Razorpay (HTTP ' . $status . ')';
+}
+
 /** HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET) compared in constant time. */
 function razorpay_signature_valid(string $orderId, string $paymentId, string $signature): bool
 {

@@ -19,12 +19,20 @@ try {
     $dbStatus = 'PROBLEM: ' . db_problem($e);
 }
 
-json_out([
+// ?check=1 asks Razorpay whether the keys work (shows only OK / REJECTED, never the secret)
+$keyCheck = isset($_GET['check']) ? razorpay_check_keys() : null;
+if ($keyCheck !== null) {
+    header('Cache-Control: no-store');
+}
+
+json_out(array_filter([
     'ok'        => true,
     'database'  => $dbStatus,
     'payment'   => razorpay_enabled()
         ? 'razorpay (' . (str_starts_with(razorpay_key_id(), 'rzp_live_') ? 'LIVE' : 'test') . ' mode)'
         : 'upi – Razorpay keys not found (add them to config.php or .env)',
+    'razorpay_key_id'   => razorpay_key_id() ?: null,          // public key, safe to show
+    'razorpay_keys_from'=> razorpay_key_source(),
     'slug'      => cfg('event.slug'),
     'title'     => cfg('event.title'),
     'starts_at' => cfg('event.starts_at'),
@@ -32,4 +40,5 @@ json_out([
     'seats'     => (int) cfg('event.seats'),
     'seats_left'=> seats_left(),
     'open'      => registration_open(),
-]);
+    'razorpay_key_check' => $keyCheck,
+], fn ($v) => $v !== null));
