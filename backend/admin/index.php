@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'profession'     => $prof ?: null,
                 'organization'   => trim((string) ($_POST['organization'] ?? '')) ?: null,
                 'amount'         => max(0, (int) ($_POST['amount'] ?? cfg('event.fee'))),
-                'payment_mode'   => in_array($_POST['payment_mode'] ?? '', ['upi', 'cash', 'bank', 'free'], true) ? $_POST['payment_mode'] : 'upi',
+                'payment_mode'   => in_array($_POST['payment_mode'] ?? '', ['razorpay', 'upi', 'cash', 'bank', 'free'], true) ? $_POST['payment_mode'] : 'upi',
                 'payment_status' => $status,
                 'payment_ref'    => trim((string) ($_POST['payment_ref'] ?? '')) ?: null,
                 'admin_note'     => trim((string) ($_POST['admin_note'] ?? '')) ?: null,
@@ -490,7 +490,7 @@ function row_actions(array $r, string $csrf, string $back): string
         <div class="f2">
           <label>Payment status<select name="payment_status"><?php foreach ($STATUSES as $k => $label): ?><option value="<?= $k ?>" <?= $k === $r['payment_status'] ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label>
           <label>Amount (₹)<input name="amount" type="number" min="0" value="<?= (int) $r['amount'] ?>"></label>
-          <label>Payment mode<select name="payment_mode"><?php foreach (['upi' => 'UPI', 'cash' => 'Cash', 'bank' => 'Bank transfer', 'free' => 'Free / Complimentary'] as $k => $label): ?><option value="<?= $k ?>" <?= $k === $r['payment_mode'] ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label>
+          <label>Payment mode<select name="payment_mode"><?php foreach (['razorpay' => 'Razorpay (online)', 'upi' => 'UPI', 'cash' => 'Cash', 'bank' => 'Bank transfer', 'free' => 'Free / Complimentary'] as $k => $label): ?><option value="<?= $k ?>" <?= $k === $r['payment_mode'] ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label>
           <label>UTR / Reference<input name="payment_ref" value="<?= e($r['payment_ref']) ?>"></label>
         </div>
         <label>Internal note<textarea name="admin_note" rows="3" placeholder="Only visible to admins"><?= e($r['admin_note']) ?></textarea></label>

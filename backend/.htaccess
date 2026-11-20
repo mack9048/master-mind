@@ -3,7 +3,7 @@ Options -Indexes
 DirectoryIndex index.php
 
 # Block direct access to private files
-<FilesMatch "^(config\.php|config\.sample\.php|database\.sql|README\.md|\.git.*)$">
+<FilesMatch "^(config\.php|config\.sample\.php|database\.sql|README\.md|\.env.*|\.git.*)$">
   Require all denied
 </FilesMatch>
 

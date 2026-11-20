@@ -84,8 +84,8 @@ export function Details() {
 export function Faq() {
   const faqs = [
     ['Who can attend?', 'Anyone curious about branding — students, designers, marketers, entrepreneurs and business owners. No prior experience needed.'],
-    [`How do I pay the ₹${EVENT.fee} fee?`, `After filling the form you will see our UPI QR code. Scan it with GPay, PhonePe, Paytm or any UPI app, pay ₹${EVENT.fee} and enter the UPI transaction (UTR) number. We confirm your seat on WhatsApp.`],
-    ['How do I know my seat is confirmed?', 'You get a registration ID (like MM26-XXXXXX) as soon as you register. Once the payment is verified your seat is reserved. Show the ID at the venue.'],
+    [`How do I pay the ₹${EVENT.fee} fee?`, `Online, right after filling the form — UPI (GPay, PhonePe, Paytm), debit/credit card, net banking or wallet, secured by Razorpay. Your seat is confirmed instantly.`],
+    ['How do I know my seat is confirmed?', 'You get a registration ID (like MM26-XXXXXX) as soon as you register. As soon as the payment succeeds your seat is confirmed. Show the ID at the venue.'],
     ['Where is the venue?', <>{EVENT.venue}. <a className="link" href={EVENT.venueMap} target="_blank" rel="noopener noreferrer">Open in Google Maps</a>.</>],
     ['Is the fee refundable?', `Please contact us on ${EVENT.phone} if you can’t make it — we’ll do our best to help.`],
   ];

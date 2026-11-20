@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/includes/bootstrap.php';
+require dirname(__DIR__) . '/includes/razorpay.php';
 
 api_begin('POST');
 
@@ -62,7 +63,7 @@ if ($errors) {
 $phone  = '+91' . $phoneRaw;
 $slug   = cfg('event.slug');
 $fee    = (int) cfg('event.fee');
-$mode   = 'upi';
+$mode   = razorpay_enabled() ? 'razorpay' : 'upi';
 $pdo    = db();
 
 try {
@@ -133,6 +134,11 @@ try {
 
 // Signed token proving this browser created the registration (used by api/payment.php)
 $regToken = reg_token($regCode);
+
+// Razorpay: the browser now calls api/create-order.php and opens Razorpay Checkout
+if ($mode === 'razorpay') {
+    json_out(['ok' => true, 'mode' => 'razorpay', 'reg_code' => $regCode, 'token' => $regToken, 'amount' => $fee]);
+}
 
 // UPI / manual mode – QR image uploaded by the institute, or generated from the UPI ID
 $qrImage = null;

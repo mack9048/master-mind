@@ -27,13 +27,31 @@ Current edition: **Favour Your Brand** — Branding Masterclass with Favour Fran
    - **UPI QR**: `payment.upi_id` (QR with ₹299 pre-filled is generated) **or** upload your QR image as `assets/img/upi-qr.png`
 4. Check `https://apiclass.macadz.com/api/event.php` shows JSON, then book a test seat on the website and see it in `https://apiclass.macadz.com/admin/`.
 
+### Razorpay (online payment)
+
+Payments use **Razorpay Standard Checkout**. The keys live only on the server, in `backend/.env`
+(same folder as `config.php`; blocked from the web by `.htaccess`, ignored by Git):
+
+```
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxx
+RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxx
+```
+
+Flow: form → `POST /api/register.php` (booking saved, unpaid) → `POST /api/create-order.php`
+(server creates the Razorpay order for the fee) → Razorpay modal → `POST /api/verify-payment.php`
+(HMAC-SHA256 signature check, then the booking is marked paid). Without keys the site falls back to the UPI QR flow.
+The Key ID reaches the browser through `create-order`; the Key Secret never leaves the server.
+For live payments replace both values with your `rzp_live_…` keys from the Razorpay Dashboard.
+
 ### API
 
 | Endpoint | |
 |---|---|
 | `GET  /api/event.php` | seats left, registration open |
 | `POST /api/register.php` | name, phone, email, city, profession, organization, expectation → `reg_code`, `token`, UPI details |
-| `POST /api/payment.php` | `action=upi_ref`, `reg_code`, `token`, `payment_ref` (UTR) |
+| `POST /api/create-order.php` | `reg_code`, `token` → Razorpay `order_id`, `amount` (paise), `currency`, `key_id` |
+| `POST /api/verify-payment.php` | `reg_code`, `token`, `razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature` → marks paid |
+| `POST /api/payment.php` | UPI fallback: `action=upi_ref`, `reg_code`, `token`, `payment_ref` (UTR) |
 | `/admin/` | dashboard: stats, verify UPI payments (UTR), edit / add / cancel / delete bookings, WhatsApp confirmation, check-in, CSV export |
 
 Registrations are stored per `event.slug`, so future Master Mind editions share the same table.

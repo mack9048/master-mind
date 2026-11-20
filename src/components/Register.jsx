@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import { EVENT, PROFESSIONS, telLink, waLink } from '../config.js';
 import { postForm } from '../hooks.js';
+import { payWithRazorpay, loadRazorpay } from '../razorpay.js';
 import { Reveal } from './Sections.jsx';
 
 const EMPTY = { name: '', phone: '', email: '', profession: '', website: '' };
@@ -96,12 +97,48 @@ function PayStep({ reg, onPaid }) {
   );
 }
 
-function Done({ code, onClose }) {
+function RazorpayStep({ reg, onPaid }) {
+  const [state, setState] = useState({ busy: true, msg: '' });
+
+  async function pay() {
+    setState({ busy: true, msg: '' });
+    const r = await payWithRazorpay(reg);
+    if (r.status === 'paid') { onPaid(); return; }
+    setState({
+      busy: false,
+      msg: r.status === 'dismissed' ? 'Payment cancelled. Your seat is held — tap Pay to try again.' : r.message,
+    });
+  }
+
+  // Open Razorpay straight after registering (ref guard: StrictMode runs effects twice in dev)
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    pay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <h3 id="modalTitle">Complete your payment</h3>
+      <p>Your seat is reserved. Pay ₹{reg.amount ?? EVENT.fee} securely with UPI, card, net banking or wallet.</p>
+      <span className="code">{reg.reg_code}</span>
+      {state.msg && <p className="form__msg" role="alert">{state.msg}</p>}
+      <button className={`btn btn--primary btn--block${state.busy ? ' is-loading' : ''}`} type="button" onClick={pay} disabled={state.busy}>
+        <span className="btn__label">{state.busy ? 'Opening payment…' : `Pay ₹${reg.amount ?? EVENT.fee}`}</span><span className="btn__spin" />
+      </button>
+      <p className="form__note" style={{ textAlign: 'center', marginTop: 12 }}>Secured by Razorpay · Questions? <a className="link" href={telLink}>{EVENT.phone}</a></p>
+    </>
+  );
+}
+
+function Done({ code, onClose, confirmed }) {
   return (
     <>
       <div className="ok-icon">✓</div>
-      <h3 id="modalTitle">Registration received!</h3>
-      <p>We’ll verify your payment and confirm your seat on WhatsApp shortly.</p>
+      <h3 id="modalTitle">{confirmed ? 'You’re in! Seat confirmed.' : 'Registration received!'}</h3>
+      <p>{confirmed ? 'Your payment was successful.' : 'We’ll verify your payment and confirm your seat on WhatsApp shortly.'}</p>
       <span className="code">{code}</span>
       <p>Save this registration ID and show it at the venue.<br />{EVENT.dateLabel} · {EVENT.timeLabel}</p>
       <div className="stack">
@@ -124,6 +161,15 @@ export default function Register({ status }) {
   const seatsLeft = status?.seats > 0 ? status.seats_left : null;
   const closed = status && !status.open;
   const soldOut = seatsLeft !== null && seatsLeft !== undefined && seatsLeft <= 0;
+
+  // Warm up Razorpay Checkout while the visitor fills the form
+  useEffect(() => {
+    const el = formRef.current;
+    if (!el) return;
+    const warm = () => { loadRazorpay(); el.removeEventListener('focusin', warm); };
+    el.addEventListener('focusin', warm);
+    return () => el.removeEventListener('focusin', warm);
+  }, []);
 
   const set = (k) => (e) => {
     setF((s) => ({ ...s, [k]: e.target.value }));
@@ -206,7 +252,7 @@ export default function Register({ status }) {
                 <span className="btn__label">Continue to payment · ₹{EVENT.fee}</span><span className="btn__spin" aria-hidden="true" />
               </button>
               {msg && <p className="form__msg" role="alert">{msg}</p>}
-              <p className="book__note">Pay by UPI QR on the next step · Questions? <a className="link" href={telLink}>{EVENT.phone}</a></p>
+              <p className="book__note">Secure online payment on the next step · Questions? <a className="link" href={telLink}>{EVENT.phone}</a></p>
             </form>
           )}
         </Reveal>
@@ -214,7 +260,11 @@ export default function Register({ status }) {
 
       {reg && (
         <Modal onClose={closeModal}>
-          {paid ? <Done code={reg.reg_code} onClose={closeModal} /> : <PayStep reg={reg} onPaid={() => setPaid(true)} />}
+          {paid
+            ? <Done code={reg.reg_code} onClose={closeModal} confirmed={reg.mode === 'razorpay'} />
+            : reg.mode === 'razorpay'
+              ? <RazorpayStep reg={reg} onPaid={() => setPaid(true)} />
+              : <PayStep reg={reg} onPaid={() => setPaid(true)} />}
         </Modal>
       )}
     </section>

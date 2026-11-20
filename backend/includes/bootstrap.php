@@ -40,6 +40,26 @@ if ($IS_API) {
  * On Vercel (no config.php) the values come from Environment Variables, e.g.
  * DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, UPI_ID, UPI_NAME, ADMIN_PASS, APP_SECRET, SEATS.
  */
+/*
+ * Optional backend/.env file (KEY=VALUE per line) – used for secrets such as
+ * RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET. Real environment variables win.
+ * The file is blocked from the web by .htaccess and ignored by Git.
+ */
+$envFile = dirname(__DIR__) . '/.env';
+if (is_file($envFile) && is_readable($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+            continue;
+        }
+        [$k, $v] = array_map('trim', explode('=', $line, 2));
+        $v = trim($v, "\"'");
+        if ($k !== '' && getenv($k) === false) {
+            putenv("$k=$v");
+        }
+    }
+}
+
 $configFile = dirname(__DIR__) . '/config.php';
 $CONFIG = require (is_file($configFile) ? $configFile : dirname(__DIR__) . '/config.sample.php');
 
@@ -50,6 +70,7 @@ $envMap = [
     'ADMIN_USER' => ['admin', 'user'], 'ADMIN_PASS' => ['admin', 'pass'],
     'SEATS' => ['event', 'seats'], 'APP_SECRET' => ['app_secret', null],
     'FRONTEND_URL' => ['frontend_url', null], 'ALLOWED_ORIGINS' => ['allowed_origins', null],
+    'RAZORPAY_KEY_ID' => ['razorpay', 'key_id'], 'RAZORPAY_KEY_SECRET' => ['razorpay', 'key_secret'],
 ];
 foreach ($envMap as $env => [$a, $b]) {
     $v = getenv($env);

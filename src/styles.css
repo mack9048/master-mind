@@ -452,6 +452,7 @@ a.meta__tx:hover small { color: var(--cta); }
 .modal__x:hover { color: var(--text); background: rgba(255,255,255,.06); }
 .modal h3 { font-size: 1.6rem; margin-bottom: 8px; }
 .modal p { color: var(--muted); }
+.modal .form__msg { color: #ff8a8f; margin: 0 0 12px; }
 .modal .code { display: block; margin: 18px 0; padding: 14px; border-radius: 10px; background: #111; border: 1px dashed var(--yellow); color: var(--yellow); font: 700 1.5rem/1 var(--ff-pixel); text-align: center; letter-spacing: .05em; }
 .modal .upi { display: grid; gap: 12px; margin: 18px 0; padding: 16px; border-radius: 12px; background: #121214; border: 1px solid var(--line); }
 .modal .upi__row { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
