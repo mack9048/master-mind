@@ -8,13 +8,14 @@ api_begin('GET');
 header('Cache-Control: public, max-age=30');
 
 try {
-    db()->query('SELECT 1 FROM registrations LIMIT 1');
+    // Touch every column the booking form writes, so an outdated table is reported too
+    db()->query('SELECT id, reg_code, event_slug, name, email, phone, city, profession, organization, expectation,
+                        amount, payment_mode, payment_status, payment_ref, attended, ip_address, user_agent, created_at
+                 FROM registrations LIMIT 1');
     $dbStatus = 'connected';
 } catch (Throwable $e) {
     error_log('[mastermind] event: ' . $e->getMessage());
-    $dbStatus = $e instanceof PDOException && str_contains($e->getMessage(), "doesn't exist")
-        ? 'connected, but the registrations table is missing – import database.sql'
-        : 'NOT connected – check the db settings in config.php';
+    $dbStatus = 'PROBLEM: ' . db_problem($e);
 }
 
 json_out([

@@ -128,7 +128,7 @@ try {
         $pdo->rollBack();
     }
     error_log('[mastermind] register: ' . $ex->getMessage());
-    json_out(['ok' => false, 'error' => 'Something went wrong while saving. Please try again or call ' . cfg('event.phone') . '.'], 500);
+    json_out(['ok' => false, 'error' => 'Could not save your booking (' . db_problem($ex) . '). Please call ' . cfg('event.phone') . ' to book.'], 500);
 }
 
 // Signed token proving this browser created the registration (used by api/payment.php)

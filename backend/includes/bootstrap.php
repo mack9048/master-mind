@@ -146,6 +146,29 @@ function db(): PDO
     return $pdo;
 }
 
+/** Turn a database error into a short, safe explanation (no passwords or SQL shown). */
+function db_problem(Throwable $e): string
+{
+    $m = $e->getMessage();
+    if (str_contains($m, "doesn't exist") || str_contains($m, '1146')) {
+        return 'the registrations table is missing – run database.sql in phpMyAdmin';
+    }
+    if (str_contains($m, 'Unknown column') || str_contains($m, '1054')) {
+        preg_match("/Unknown column '([^']+)'/", $m, $c);
+        return 'the registrations table is outdated' . (!empty($c[1]) ? " (missing column {$c[1]})" : '') . ' – drop it and run database.sql again';
+    }
+    if (str_contains($m, 'Access denied') || str_contains($m, '1045') || str_contains($m, '1044')) {
+        return 'database login failed – check db name / user / password in config.php';
+    }
+    if (str_contains($m, '2002') || str_contains($m, 'Connection refused') || str_contains($m, 'getaddrinfo')) {
+        return 'database server not reachable – db host should be localhost';
+    }
+    if (str_contains($m, 'Data too long') || str_contains($m, 'Incorrect') || str_contains($m, 'truncated')) {
+        return 'a value did not fit the table – run the latest database.sql';
+    }
+    return 'database error (' . ($e instanceof PDOException ? ($e->errorInfo[1] ?? $e->getCode()) : get_class($e)) . ')';
+}
+
 function e($value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
