@@ -385,14 +385,26 @@ a.meta__tx:hover small { color: var(--cta); }
   background: #1e1e21; border-color: rgba(255, 255, 255, .1); font-size: 1rem;
 }
 .book__form input::placeholder { color: #6b6b73; }
+/* keep browser autofill dark instead of light blue */
+.book__form input:-webkit-autofill,
+.book__form input:-webkit-autofill:hover,
+.book__form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px #1e1e21 inset;
+  box-shadow: 0 0 0 1000px #1e1e21 inset;
+  transition: background-color 9999s ease-out 0s;
+}
+.book__form input:autofill { background: #1e1e21; color: var(--text); }
 .book__form .phone { padding: 0; gap: 0; overflow: hidden; }
 .book__form .phone span { display: grid; place-items: center; align-self: stretch; padding: 0 20px; border-right: 1px solid rgba(255, 255, 255, .1); color: var(--cta); font-weight: 700; }
 .book__form .phone input { height: 100%; padding: 0 18px; border: 0; border-radius: 0; background: transparent; }
-.chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+@media (max-width: 960px) { .chips { grid-template-columns: repeat(3, 1fr); } }
 .chip {
   position: relative; display: grid; place-items: center; min-height: 66px; padding: 10px;
   border-radius: 18px; border: 1px solid rgba(255, 255, 255, .1); background: #1e1e21;
-  font: 800 .78rem/1.2 var(--ff); letter-spacing: .08em; text-transform: uppercase; text-align: center; color: #a8a8b0;
+  font: 800 .74rem/1.2 var(--ff); letter-spacing: .06em; text-transform: uppercase; text-align: center; color: #a8a8b0;
   cursor: pointer; transition: border-color .2s, background .2s, color .2s, transform .2s;
 }
 .chip:hover { border-color: rgba(255, 255, 255, .25); color: var(--text); }

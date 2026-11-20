@@ -37,8 +37,14 @@ export async function postForm(path, data) {
   Object.entries(data).forEach(([k, v]) => body.append(k, v ?? ''));
   try {
     const res = await fetch(`${API_URL}${path}`, { method: 'POST', body, headers: { Accept: 'application/json' } });
-    return await res.json();
-  } catch {
-    return { ok: false, error: 'Could not reach the server. Please check your connection and try again.' };
+    try {
+      return await res.json();
+    } catch {
+      console.error(`[booking] ${API_URL}${path} answered HTTP ${res.status} without JSON`);
+      return { ok: false, error: `Booking server error (HTTP ${res.status}). Please try again in a moment.` };
+    }
+  } catch (err) {
+    console.error(`[booking] could not reach ${API_URL}${path}`, err);
+    return { ok: false, error: 'Could not connect to the booking server. Please try again in a moment, or call us to book.' };
   }
 }

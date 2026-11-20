@@ -2,6 +2,40 @@
 declare(strict_types=1);
 
 /*
+ * API requests always answer in JSON with the CORS header, even on errors,
+ * so the website can show the real problem instead of "could not reach the server".
+ * (The origin allow-list is still enforced in api_begin() before anything is saved.)
+ */
+$IS_API = str_contains(str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '')), '/api/');
+if ($IS_API) {
+    if (!empty($_SERVER['HTTP_ORIGIN'])) {
+        header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+        header('Vary: Origin');
+    }
+    $apiFail = static function (string $msg, int $code = 500): void {
+        if (!headers_sent()) {
+            http_response_code($code);
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        echo json_encode(['ok' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    };
+    set_exception_handler(static function (Throwable $e) use ($apiFail): void {
+        error_log('[mastermind] ' . $e->getMessage());
+        $apiFail($e instanceof PDOException
+            ? 'Booking server: database connection failed. Please try again later.'
+            : 'Booking server error. Please try again later.');
+    });
+    register_shutdown_function(static function () use ($apiFail): void {
+        $err = error_get_last();
+        if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true) && !headers_sent()) {
+            error_log('[mastermind] fatal: ' . $err['message']);
+            $apiFail('Booking server error. Please try again later.');
+        }
+    });
+}
+
+/*
  * Config: config.php on normal hosting (Hostinger / cPanel).
  * On Vercel (no config.php) the values come from Environment Variables, e.g.
  * DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, UPI_ID, UPI_NAME, ADMIN_PASS, APP_SECRET, SEATS.
@@ -29,8 +63,13 @@ foreach ($envMap as $env => [$a, $b]) {
     }
 }
 if (!is_file($configFile) && getenv('DB_HOST') === false) {
+    $m = 'Missing configuration – create config.php (see config.sample.php) or set the DB_* environment variables.';
+    if ($IS_API) {
+        $apiFail('Booking server is not configured yet (config.php missing).');
+        exit;
+    }
     http_response_code(500);
-    exit('Missing configuration – create config.php (see config.sample.php) or set the DB_* environment variables.');
+    exit($m);
 }
 
 if (!empty($CONFIG['debug'])) {
@@ -195,8 +234,6 @@ function api_begin(string $method): void
     $ok      = $origin === '' || in_array($origin, $allowed, true) || in_array('*', $allowed, true);
 
     if ($origin !== '' && $ok) {
-        header('Access-Control-Allow-Origin: ' . $origin);
-        header('Vary: Origin');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type');
         header('Access-Control-Max-Age: 86400');
@@ -206,7 +243,7 @@ function api_begin(string $method): void
         exit;
     }
     if (!$ok) {
-        json_out(['ok' => false, 'error' => 'Origin not allowed'], 403);
+        json_out(['ok' => false, 'error' => 'This website (' . $origin . ') is not allowed to use the booking server. Add it to allowed_origins in config.php.'], 403);
     }
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== $method) {
         json_out(['ok' => false, 'error' => 'Method not allowed'], 405);
