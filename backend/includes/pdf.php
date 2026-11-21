@@ -90,6 +90,106 @@ final class MiniPdf
             . $this->x($x1) . ' ' . $this->y($y1) . ' m ' . $this->x($x2) . ' ' . $this->y($y2) . " l S\n";
     }
 
+    /**
+     * Free path: list of commands in mm, e.g. [['M',x,y], ['L',x,y], ['C',x1,y1,x2,y2,x,y], ['Z']].
+     * $fill and/or $stroke colours; $width = stroke width in mm.
+     */
+    public function path(array $cmds, ?string $fill, ?string $stroke = null, float $width = 0.4): void
+    {
+        $o = '';
+        foreach ($cmds as $c) {
+            switch ($c[0]) {
+                case 'M': $o .= $this->x($c[1]) . ' ' . $this->y($c[2]) . " m\n"; break;
+                case 'L': $o .= $this->x($c[1]) . ' ' . $this->y($c[2]) . " l\n"; break;
+                case 'C': $o .= $this->x($c[1]) . ' ' . $this->y($c[2]) . ' ' . $this->x($c[3]) . ' ' . $this->y($c[4]) . ' ' . $this->x($c[5]) . ' ' . $this->y($c[6]) . " c\n"; break;
+                case 'Z': $o .= "h\n"; break;
+            }
+        }
+        if ($fill) { $o = $this->rgb($fill) . " rg\n" . $o; }
+        if ($stroke) { $o = $this->rgb($stroke) . ' RG ' . $this->n($width * self::PT) . " w [] 0 d 1 j\n" . $o; }
+        $this->ops .= $o . ($fill && $stroke ? "B\n" : ($fill ? "f\n" : "S\n"));
+    }
+
+    /** Smooth closed blob through points (Catmull-Rom → Bézier). */
+    public function blob(array $pts, string $fill, ?string $stroke = null, float $width = 0.4): void
+    {
+        $n = count($pts);
+        $cmds = [['M', $pts[0][0], $pts[0][1]]];
+        for ($i = 0; $i < $n; $i++) {
+            [$p0, $p1, $p2, $p3] = [$pts[($i - 1 + $n) % $n], $pts[$i], $pts[($i + 1) % $n], $pts[($i + 2) % $n]];
+            $cmds[] = ['C', $p1[0] + ($p2[0] - $p0[0]) / 6, $p1[1] + ($p2[1] - $p0[1]) / 6,
+                            $p2[0] - ($p3[0] - $p1[0]) / 6, $p2[1] - ($p3[1] - $p1[1]) / 6, $p2[0], $p2[1]];
+        }
+        $cmds[] = ['Z'];
+        $this->path($cmds, $fill, $stroke, $width);
+    }
+
+    /** Organic blob around (cx, cy) with radius r; $seed makes each one different but repeatable. */
+    public function organicBlob(float $cx, float $cy, float $rx, float $ry, int $seed, string $fill, ?string $stroke = null, float $width = 0.4): void
+    {
+        $pts = [];
+        for ($i = 0; $i < 8; $i++) {
+            $a = $i * M_PI / 4 + $seed * 0.37;
+            $k = 0.78 + 0.22 * sin($seed * 12.9898 + $i * 78.233);
+            $pts[] = [$cx + cos($a) * $rx * $k, $cy + sin($a) * $ry * $k];
+        }
+        $this->blob($pts, $fill, $stroke, $width);
+    }
+
+    /** Rotate everything drawn until endTransform() by $deg (counter-clockwise) around (cx, cy) in mm. */
+    public function rotate(float $deg, float $cx, float $cy): void
+    {
+        $a = deg2rad($deg);
+        $c = cos($a); $s = sin($a);
+        $px = $cx * self::PT; $py = ($this->h - $cy) * self::PT;
+        $this->ops .= sprintf("q %s %s %s %s %s %s cm\n", $this->n($c), $this->n($s), $this->n(-$s), $this->n($c),
+            $this->n($px - $px * $c + $py * $s), $this->n($py - $px * $s - $py * $c));
+    }
+
+    public function endTransform(): void
+    {
+        $this->ops .= "Q\n";
+    }
+
+    public function strokeRect(float $x, float $y, float $w, float $h, string $color, float $width = 0.4, float $r = 0): void
+    {
+        if ($r <= 0) {
+            $this->ops .= $this->rgb($color) . ' RG ' . $this->n($width * self::PT) . " w [] 0 d\n"
+                . sprintf("%s %s %s %s re S\n", $this->x($x), $this->y($y + $h), $this->n($w * self::PT), $this->n($h * self::PT));
+            return;
+        }
+        $k = 0.5523 * $r;
+        $this->path([
+            ['M', $x + $r, $y], ['L', $x + $w - $r, $y], ['C', $x + $w - $r + $k, $y, $x + $w, $y + $r - $k, $x + $w, $y + $r],
+            ['L', $x + $w, $y + $h - $r], ['C', $x + $w, $y + $h - $r + $k, $x + $w - $r + $k, $y + $h, $x + $w - $r, $y + $h],
+            ['L', $x + $r, $y + $h], ['C', $x + $r - $k, $y + $h, $x, $y + $h - $r + $k, $x, $y + $h - $r],
+            ['L', $x, $y + $r], ['C', $x, $y + $r - $k, $x + $r - $k, $y, $x + $r, $y], ['Z'],
+        ], null, $color, $width);
+    }
+
+    /**
+     * Chunky "sticker" text: shadow + thick outline + fill (font: 'B' bold, 'I' bold-oblique).
+     */
+    public function stickerText(float $x, float $y, string $s, float $size, string $fill, string $outline, float $outlineW = 0.9, float $shadow = 0.9, string $font = 'B', string $align = 'L', float $spacing = 0): float
+    {
+        $w = $this->textWidth($s, $size, true, $spacing);
+        if ($align === 'C') { $x -= $w / 2; }
+        if ($align === 'R') { $x -= $w; }
+        $t = strtr(self::enc($s), ['\\' => '\\\\', '(' => '\\(', ')' => '\\)']);
+        $f = $font === 'I' ? 'F3' : 'F2';
+        $base = '/' . $f . ' ' . $this->n($size) . ' Tf ' . $this->n($spacing) . ' Tc ';
+        $this->ops .= "[] 0 d\n"; // solid outline even after a dashed line
+        $lw = $this->n($outlineW * self::PT);
+        // shadow (outlined so it matches the outline thickness)
+        if ($shadow > 0) {
+            $this->ops .= 'BT ' . $this->rgb($outline) . ' rg ' . $this->rgb($outline) . ' RG ' . $lw . ' w 1 j 2 Tr ' . $base
+                . $this->x($x + $shadow) . ' ' . $this->y($y + $shadow) . " Td ($t) Tj ET\n";
+        }
+        $this->ops .= 'BT ' . $this->rgb($outline) . ' RG ' . $lw . ' w 1 j 1 Tr ' . $base . $this->x($x) . ' ' . $this->y($y) . " Td ($t) Tj ET\n";
+        $this->ops .= 'BT ' . $this->rgb($fill) . ' rg 0 Tr ' . $base . $this->x($x) . ' ' . $this->y($y) . " Td ($t) Tj ET\n";
+        return $w;
+    }
+
     /** Filled polygon; $pts = [[x,y], ...] in mm. */
     public function polygon(array $pts, string $fill): void
     {
@@ -156,6 +256,20 @@ final class MiniPdf
         }
     }
 
+    /** Code 128 (set B) barcode drawn horizontally (bars vertical). */
+    public function barcode128(float $x, float $y, float $w, float $h, string $data, string $color = '#000000'): void
+    {
+        $modules = self::code128Modules($data);
+        $unit = $w / array_sum($modules);
+        $pos = $x;
+        foreach ($modules as $i => $m) {
+            if ($i % 2 === 0) {
+                $this->rect($pos, $y, $m * $unit, $h, $color);
+            }
+            $pos += $m * $unit;
+        }
+    }
+
     /** Module widths (bar, space, bar, …) for Code 128-B incl. quiet-zone-free start/checksum/stop. */
     public static function code128Modules(string $data): array
     {
@@ -200,13 +314,13 @@ final class MiniPdf
     }
 
     /** Draw text; $y is the baseline. $align: L | C | R. $spacing is extra letter spacing in pt. */
-    public function text(float $x, float $y, string $s, float $size, string $color = '#ffffff', bool $bold = false, string $align = 'L', float $spacing = 0): float
+    public function text(float $x, float $y, string $s, float $size, string $color = '#ffffff', bool $bold = false, string $align = 'L', float $spacing = 0, bool $oblique = false): float
     {
         $w = $this->textWidth($s, $size, $bold, $spacing);
         if ($align === 'C') { $x -= $w / 2; }
         if ($align === 'R') { $x -= $w; }
         $t = strtr(self::enc($s), ['\\' => '\\\\', '(' => '\\(', ')' => '\\)', "\r" => '', "\n" => ' ']);
-        $this->ops .= 'BT ' . $this->rgb($color) . ' rg /' . ($bold ? 'F2' : 'F1') . ' ' . $this->n($size) . ' Tf '
+        $this->ops .= 'BT ' . $this->rgb($color) . ' rg 0 Tr /' . ($oblique ? 'F3' : ($bold ? 'F2' : 'F1')) . ' ' . $this->n($size) . ' Tf '
             . $this->n($spacing) . ' Tc ' . $this->x($x) . ' ' . $this->y($y) . " Td ($t) Tj ET\n";
         return $w;
     }
@@ -226,15 +340,17 @@ final class MiniPdf
         $objs = [];
         $objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
         $objs[2] = '<< /Type /Pages /Kids [3 0 R] /Count 1 >>';
-        $objs[3] = sprintf('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %s %s] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>',
+        $objs[3] = sprintf('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %s %s] /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 8 0 R >> >> /Contents 4 0 R >>',
             $this->n($this->w * self::PT), $this->n($this->h * self::PT));
         $objs[4] = '<< /Length ' . strlen($content) . " >>\nstream\n" . $content . "\nendstream";
         $objs[5] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
         $objs[6] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+        $objs[8] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique /Encoding /WinAnsiEncoding >>';
         $objs[7] = '<< /Title (' . strtr(self::enc($title), ['\\' => '\\\\', '(' => '\\(', ')' => '\\)']) . ') /Producer (Master Mind) >>';
 
         $pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
         $offsets = [];
+        ksort($objs);
         foreach ($objs as $i => $o) {
             $offsets[$i] = strlen($pdf);
             $pdf .= "$i 0 obj\n$o\nendobj\n";

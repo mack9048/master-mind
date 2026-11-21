@@ -19,94 +19,124 @@ function ticket_filename(array $r): string
     return 'MasterMind-Ticket-' . $r['reg_code'] . '.pdf';
 }
 
-/** Build the entry ticket PDF (210 × 85 mm, "cinema ticket" style) for a booking row. */
+/** Build the entry ticket PDF (210 × 82 mm, concert-ticket style) for a booking row. */
 function ticket_pdf(array $r): string
 {
-    $W = 210; $H = 85; $cut = 150;                    // stub starts at $cut
-    $purple = '#7b2cbf'; $stripe = '#8a3fd0';
-    $yellow = '#f9c816'; $stripeY = '#ffd84a';
-    $white = '#ffffff'; $soft = '#e9dcff'; $paper = '#ffffff';
+    $W = 210; $H = 82;
+    $L = 4; $T = 5; $R = 206; $B = 77; $cut = 151;           // ticket box + stub line
+    $navy = '#1d1850'; $page = '#2a2468';
+    $purple = '#6a4cf0'; $purple2 = '#7d63ff'; $purple3 = '#8f7bff';
+    $orange = '#ffb020'; $orange2 = '#ffc94d'; $red = '#ff5a4e'; $yellow = '#ffd23f';
+    $white = '#ffffff'; $lav = '#e7e1ff';
     $pdf = new MiniPdf($W, $H);
 
-    // ---- ticket body + stub with diagonal stripes
-    $stripes = function (float $x, float $w, string $base, string $line) use ($pdf, $H): void {
-        $pdf->clip($x, 0, $w, $H);
-        $pdf->rect($x, 0, $w, $H, $base);
-        for ($sx = $x - $H; $sx < $x + $w; $sx += 3.2) {
-            $pdf->polygon([[$sx, $H], [$sx + 1.1, $H], [$sx + 1.1 + $H, 0], [$sx + $H, 0]], $line);
+    $pdf->rect(0, 0, $W, $H, $page);
+    // subtle dotted pattern on the page background
+    for ($y = 2; $y < $H; $y += 4) {
+        for ($x = 2 + ($y % 8 ? 2 : 0); $x < $W; $x += 4) {
+            $pdf->circle($x, $y, 0.22, '#332c78');
         }
-        $pdf->endClip();
-    };
-    $stripes(0, $cut, $purple, $stripe);
-    $stripes($cut, $W - $cut, $yellow, $stripeY);
-
-    // ---- stamp-style scalloped edges + perforation
-    for ($x = 2.2; $x < $W; $x += 4.4) {
-        $pdf->circle($x, 0, 1.5, $paper);
-        $pdf->circle($x, $H, 1.5, $paper);
     }
-    for ($y = 2.2; $y < $H; $y += 4.4) {
-        $pdf->circle(0, $y, 1.5, $paper);
-        $pdf->circle($W, $y, 1.5, $paper);
+
+    // ---------- ticket body (purple, wavy shapes)
+    $pdf->rect($L, $T, $R - $L, $B - $T, $navy, 3.2);                       // outline / shadow base
+    $pdf->clip($L + 0.7, $T + 0.7, $cut - $L - 0.7, $B - $T - 1.4);
+    $pdf->rect($L, $T, $cut - $L, $B - $T, $purple);
+    $pdf->organicBlob(40, 8, 48, 18, 3, $purple2);
+    $pdf->organicBlob(120, 82, 46, 22, 7, $purple2);
+    $pdf->organicBlob(92, 40, 22, 30, 11, $purple3);
+    $pdf->organicBlob(8, 80, 20, 16, 5, $red, $navy, 0.5);
+    $pdf->organicBlob(150, 8, 16, 12, 9, $orange, $navy, 0.5);
+    $pdf->organicBlob(-2, 30, 9, 14, 2, $orange, $navy, 0.5);
+    $pdf->endClip();
+
+    // ---------- stub (orange, wavy shapes)
+    $pdf->clip($cut, $T + 0.7, $R - $cut - 0.7, $B - $T - 1.4);
+    $pdf->rect($cut, $T, $R - $cut, $B - $T, $orange);
+    $pdf->organicBlob(200, 12, 22, 16, 4, $orange2);
+    $pdf->organicBlob(160, 74, 20, 14, 8, $orange2);
+    $pdf->organicBlob(210, 70, 10, 12, 6, $red, $navy, 0.5);
+    $pdf->endClip();
+
+    // perforation + notches
+    $pdf->line($cut, $T + 5, $cut, $B - 5, $navy, 0.5, [1.3, 1.3]);
+    foreach ([$T, $B] as $ny) {
+        $pdf->circle($cut, $ny, 4.2, $navy);
+        $pdf->circle($cut, $ny, 3.5, $page);
     }
-    for ($y = 5; $y < $H - 3; $y += 3) {
-        $pdf->circle($cut, $y, 0.75, $paper);
+
+    // ---------- title block (chunky sticker letters)
+    $pdf->stickerText(11, 26, 'MASTER', 27, $white, $navy, 1.1, 1.1, 'B', 'L', 0.4);
+    $pdf->stickerText(11, 38.5, 'MIND', 27, $yellow, $navy, 1.1, 1.1, 'B', 'L', 0.6);
+    $pw = $pdf->textWidth('meet the expert', 9, true) + 8;
+    $pdf->rect(12.2, 43.6, $pw, 7, $navy, 3.5);
+    $pdf->rect(11.4, 42.8, $pw, 7, $yellow, 3.5);
+    $pdf->text(15.4, 47.8, 'meet the expert', 9, $navy, true, 'L', 0, true);
+    // little flowers / sparkles
+    foreach ([[66, 14, $yellow], [70.5, 18.5, $white], [9, 58, $white]] as [$fx, $fy, $fc]) {
+        for ($k = 0; $k < 5; $k++) {
+            $a = $k * 2 * M_PI / 5;
+            $pdf->circle($fx + cos($a) * 1.3, $fy + sin($a) * 1.3, 0.9, $fc);
+        }
+        $pdf->circle($fx, $fy, 0.7, $red);
     }
-    $pdf->circle($cut, 0, 4, $paper);
-    $pdf->circle($cut, $H, 4, $paper);
 
-    // ---- body
-    $pdf->dashedRect(7, 7, $cut - 14, $H - 14, $white, 0.4, [1.6, 1.3]);
-
-    $pill = strtoupper(cfg('event.series') . ' · ' . cfg('event.tagline'));
-    $pw = $pdf->textWidth($pill, 7, true, 0.8) + 8;
-    $pdf->rect(13, 12, $pw, 6, $yellow, 3);
-    $pdf->text(17, 16.3, $pill, 7, '#2a1050', true, 'L', 0.8);
-
-    $pdf->text(13, 31, strtoupper((string) cfg('event.title')), 25, $white, true, 'L', 0.2);
-    $pdf->text(13, 41.5, 'TICKET', 25, $yellow, true, 'L', 3);
-    $pdf->text(13, 47.5, 'Branding Masterclass with ' . cfg('event.speaker'), 8.5, $soft);
-
-    $lines = [
-        strtoupper((string) cfg('event.date_label')) . '   ' . cfg('event.time_label'),
-        strtoupper((string) cfg('event.venue')),
-    ];
-    $ly = 56.5;
-    foreach ($lines as $line) {
-        $pdf->star(15, $ly - 1.2, 1.6, $yellow);
-        $pdf->fitText(19, $ly, $line, 8.5, 80, $yellow, true, 'L', 0.4);
-        $ly += 6;
+    // microphone illustration
+    $pdf->rotate(-32, 40, 64);
+    $pdf->rect(37.6, 62, 4.8, 15, $navy, 2.2);          // handle outline
+    $pdf->rect(38.2, 62.6, 3.6, 13.8, $yellow, 1.8);
+    $pdf->rect(36.6, 60, 6.8, 3.2, $navy, 1);           // collar
+    $pdf->rect(37.1, 60.4, 5.8, 2.4, $red, 0.8);
+    $pdf->circle(40, 55, 6, $navy);                    // head
+    $pdf->circle(40, 55, 5.3, $lav);
+    for ($gy = -4; $gy <= 4; $gy += 1.6) {
+        for ($gx = -4; $gx <= 4; $gx += 1.6) {
+            if ($gx * $gx + $gy * $gy < 17) {
+                $pdf->circle(40 + $gx, 55 + $gy, 0.35, '#8f84c9');
+            }
+        }
     }
-    $pdf->text(13, 70.5, 'ADMIT', 6.5, $soft, true, 'L', 1.2);
-    $pdf->fitText(25, 70.8, strtoupper((string) $r['name']), 11, 70, $white, true, 'L', 0.3);
+    $pdf->endTransform();
 
-    // "PAID" stamp
+    // ---------- event details
+    $x0 = 78;
+    $pdf->text($x0, 14.5, strtoupper((string) cfg('event.title')), 10.5, $white, true, 'L', 0.8);
+    $pdf->fitText($x0, 19.5, 'BRANDING MASTERCLASS WITH ' . strtoupper((string) cfg('event.speaker')), 5.8, $cut - $x0 - 6, $lav, true, 'L', 0.5);
+    $pdf->text($x0, 28, strtoupper((string) cfg('event.date_label')), 8.2, $white, true, 'L', 0.3);
+    $pdf->text($x0, 33, 'AT ' . strtoupper((string) cfg('event.venue')), 6.5, $lav, true, 'L', 0.5);
+    $pdf->text($x0, 42.5, 'STARTS AT:', 6.5, $lav, true, 'L', 0.6);
+    $pdf->text($x0 + 17, 43, (string) cfg('event.time_label'), 15, $white, true, 'L', 0.2);
+
+    // info boxes
+    $bx = $x0; $by = 50; $bw = 64; $bh = 16;
+    $pdf->strokeRect($bx, $by, $bw, $bh, $white, 0.45, 1.5);
+    $pdf->line($bx + 44, $by, $bx + 44, $by + $bh, $white, 0.45);
+    $pdf->text($bx + 3, $by + 5, 'ATTENDEE', 5.5, $lav, true, 'L', 0.8);
+    $pdf->fitText($bx + 3, $by + 12, strtoupper((string) $r['name']), 9, 39, $white, true);
+    $pdf->text($bx + 47, $by + 5, 'ENTRY', 5.5, $lav, true, 'L', 0.8);
+    $pdf->text($bx + 47, $by + 12, 'ADMIT 1', 8, $white, true);
+
+    // price badge
     $paid = $r['payment_status'] === 'paid';
-    $sx = 122; $sy = 52;
-    $pdf->circle($sx, $sy, 13, $paid ? '#22c55e' : '#ef4f57');
-    $pdf->circle($sx, $sy, 11.6, $paid ? '#16a34a' : '#dc2626');
-    $pdf->dashedRect($sx - 8.5, $sy - 3.8, 17, 9.6, $white, 0.3, [0.8, 0.8]);
-    $pdf->text($sx, $sy + 1.4, $paid ? 'PAID' : strtoupper((string) $r['payment_status']), 10, $white, true, 'C', 0.8);
-    $pdf->text($sx, $sy + 4.6, 'Rs. ' . (int) $r['amount'], 5.5, $white, true, 'C', 0.4);
-    $pdf->star($sx, $sy - 7, 1.4, $yellow);
+    $px = 137; $py = 36;
+    $pdf->circle($px + 0.7, $py + 0.7, 9, $navy);
+    $pdf->circle($px, $py, 9, $navy);
+    $pdf->circle($px, $py, 8.3, $paid ? $red : '#8a8aa0');
+    $pdf->text($px, $py - 1.6, $paid ? 'PAID' : strtoupper((string) $r['payment_status']), 5.5, $white, true, 'C', 0.8);
+    $pdf->stickerText($px, $py + 4.2, 'Rs.' . (int) $r['amount'], 9.5, $yellow, $navy, 0.6, 0, 'B', 'C');
 
-    // stars sprinkled top-right of body
-    $pdf->star(118, 22, 2.4, $yellow);
-    $pdf->star(131, 15, 1.5, $white);
-    $pdf->star(138, 27, 1.2, $yellow);
+    $pdf->fitText($x0, 72, 'MAC MEDIA SCHOOL  ·  SCHOOL.MACADZ.COM  ·  ' . cfg('event.phone'), 5.2, $cut - $x0 - 6, $lav, true, 'L', 0.4);
 
-    $pdf->text(13, 75.6, 'MAC Media School  ·  school.macadz.com  ·  ' . cfg('event.phone'), 5.8, $soft);
-
-    // ---- stub: vertical barcode + reg id
+    // ---------- stub: white card with barcode
     $code = (string) $r['reg_code'];
-    $pdf->rect($cut + 8, 8, 22, $H - 16, $white, 2);
-    $pdf->barcode128Vertical($cut + 11, 12, 16, $H - 24, $code, '#1a1a1a');
-    $pdf->textUp($cut + 39, $H - 10, $code, 14, '#1a1a1a', true, 1.2);
-    $pdf->textUp($cut + 47, $H - 10, 'ADMIT ONE  ·  ' . strtoupper((string) cfg('event.series')), 7, '#5b3a00', true, 1.4);
-    $ref = $r['razorpay_payment_id'] ?: $r['payment_ref'];
-    if ($ref) {
-        $pdf->textUp($cut + 53, $H - 10, 'REF ' . $ref, 5.5, '#7a5600', false, 0.6);
-    }
+    $cx0 = $cut + 6; $cw = $R - $cut - 12;
+    $pdf->rect($cx0 + 0.8, 11.8, $cw, 46, $navy, 3);
+    $pdf->rect($cx0, 11, $cw, 46, $white, 3);
+    $pdf->barcode128($cx0 + 4, 15, $cw - 8, 23, $code, $navy);
+    $pdf->fitText($cx0 + $cw / 2, 44, $code, 10.5, $cw - 6, $navy, true, 'C', 0.6);
+    $pdf->text($cx0 + $cw / 2, 52, 'ADMIT ONE', 7.5, $navy, true, 'C', 1.2);
+    $pdf->text($cut + ($R - $cut) / 2, 64.5, 'ADMISSION NO.', 5.5, $navy, true, 'C', 0.8);
+    $pdf->text($cut + ($R - $cut) / 2, 69.5, $code, 7.5, $navy, true, 'C', 0.8);
 
     return $pdf->output(cfg('event.series') . ' ticket ' . $code);
 }
