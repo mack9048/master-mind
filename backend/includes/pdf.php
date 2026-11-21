@@ -90,6 +90,95 @@ final class MiniPdf
             . $this->x($x1) . ' ' . $this->y($y1) . ' m ' . $this->x($x2) . ' ' . $this->y($y2) . " l S\n";
     }
 
+    /** Filled polygon; $pts = [[x,y], ...] in mm. */
+    public function polygon(array $pts, string $fill): void
+    {
+        $this->ops .= $this->rgb($fill) . " rg\n";
+        foreach ($pts as $i => [$px, $py]) {
+            $this->ops .= $this->x($px) . ' ' . $this->y($py) . ($i === 0 ? " m\n" : " l\n");
+        }
+        $this->ops .= "h f\n";
+    }
+
+    /** Five-pointed star centred at (cx, cy). */
+    public function star(float $cx, float $cy, float $r, string $fill): void
+    {
+        $pts = [];
+        for ($i = 0; $i < 10; $i++) {
+            $a = -M_PI / 2 + $i * M_PI / 5;
+            $rr = $i % 2 ? $r * 0.42 : $r;
+            $pts[] = [$cx + cos($a) * $rr, $cy + sin($a) * $rr];
+        }
+        $this->polygon($pts, $fill);
+    }
+
+    /** Everything drawn until endClip() is clipped to this rectangle. */
+    public function clip(float $x, float $y, float $w, float $h): void
+    {
+        $this->ops .= sprintf("q %s %s %s %s re W n\n", $this->x($x), $this->y($y + $h), $this->n($w * self::PT), $this->n($h * self::PT));
+    }
+
+    public function endClip(): void
+    {
+        $this->ops .= "Q\n";
+    }
+
+    public function dashedRect(float $x, float $y, float $w, float $h, string $color, float $width = 0.35, array $dash = [1.4, 1.2]): void
+    {
+        $this->line($x, $y, $x + $w, $y, $color, $width, $dash);
+        $this->line($x + $w, $y, $x + $w, $y + $h, $color, $width, $dash);
+        $this->line($x + $w, $y + $h, $x, $y + $h, $color, $width, $dash);
+        $this->line($x, $y + $h, $x, $y, $color, $width, $dash);
+    }
+
+    /** Text rotated 90° counter-clockwise (reads bottom → top), starting at (x, y). */
+    public function textUp(float $x, float $y, string $s, float $size, string $color = '#000000', bool $bold = false, float $spacing = 0): void
+    {
+        $t = strtr(self::enc($s), ['\\' => '\\\\', '(' => '\\(', ')' => '\\)']);
+        $this->ops .= 'BT ' . $this->rgb($color) . ' rg /' . ($bold ? 'F2' : 'F1') . ' ' . $this->n($size) . ' Tf '
+            . $this->n($spacing) . ' Tc 0 1 -1 0 ' . $this->x($x) . ' ' . $this->y($y) . " Tm ($t) Tj ET\n";
+    }
+
+    /**
+     * Code 128 (set B) barcode drawn vertically: bars run left→right, the code reads top→bottom.
+     * $x,$y = top-left, $w = bar length (mm), $h = total height (mm).
+     */
+    public function barcode128Vertical(float $x, float $y, float $w, float $h, string $data, string $color = '#000000'): void
+    {
+        $modules = self::code128Modules($data);
+        $unit = $h / array_sum($modules);
+        $pos = $y;
+        foreach ($modules as $i => $m) {
+            if ($i % 2 === 0) { // even index = bar, odd = space
+                $this->rect($x, $pos, $w, $m * $unit, $color);
+            }
+            $pos += $m * $unit;
+        }
+    }
+
+    /** Module widths (bar, space, bar, …) for Code 128-B incl. quiet-zone-free start/checksum/stop. */
+    public static function code128Modules(string $data): array
+    {
+        static $P = ['BaBbBb','BbBaBb','BbBbBa','AbAbBc','AbAcBb','AcAbBb','AbBbAc','AbBcAb','AcBbAb','BbAbAc','BbAcAb','BcAbAb','AaBbCb','AbBaCb','AbBbCa','AaCbBb','AbCaBb','AbCbBa','BbCbAa','BbAaCb','BbAbCa','BaCbAb','BbCaAb','CaBaCa','CaAbBb','CbAaBb','CbAbBa','CaBbAb','CbBaAb','CbBbAa','BaBaBc','BaBcBa','BcBaBa','AaAcBc','AcAaBc','AcAcBa','AaBcAc','AcBaAc','AcBcAa','BaAcAc','BcAaAc','BcAcAa','AaBaCc','AaBcCa','AcBaCa','AaCaBc','AaCcBa','AcCaBa','CaCaBa','BaAcCa','BcAaCa','BaCaAc','BaCcAa','BaCaCa','CaAaBc','CaAcBa','CcAaBa','CaBaAc','CaBcAa','CcBaAa','CaDaAa','BbAdAa','DcAaAa','AaAbBd','AaAdBb','AbAaBd','AbAdBa','AdAaBb','AdAbBa','AaBbAd','AaBdAb','AbBaAd','AbBdAa','AdBaAb','AdBbAa','BdAbAa','BbAaAd','DaCaAa','BdAaAb','AcDaAa','AaAbDb','AbAaDb','AbAbDa','AaDbAb','AbDaAb','AbDbAa','DaAbAb','DbAaAb','DbAbAa','BaBaDa','BaDaBa','DaBaBa','AaAaDc','AaAcDa','AcAaDa','AaDaAc','AaDcAa','DaAaAc','DaAcAa','AaCaDa','AaDaCa','CaAaDa','DaAaCa','BaAdAb','BaAbAd','BaAbCb','BcCaAaB'];
+        $vals = [104]; // Start B
+        foreach (str_split(preg_replace('/[^\x20-\x7E]/', '?', $data)) as $ch) {
+            $vals[] = ord($ch) - 32;
+        }
+        $sum = 104;
+        foreach (array_slice($vals, 1) as $i => $v) {
+            $sum += ($i + 1) * $v;
+        }
+        $vals[] = $sum % 103;
+        $vals[] = 106; // Stop
+        $mods = [];
+        foreach ($vals as $v) {
+            foreach (str_split($P[$v]) as $c) {
+                $mods[] = ord(strtolower($c)) - 96; // a/A=1 … d/D=4
+            }
+        }
+        return $mods;
+    }
+
     public static function enc(string $s): string
     {
         $s = str_replace('₹', 'Rs.', $s);
