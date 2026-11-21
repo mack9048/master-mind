@@ -190,7 +190,8 @@ tr:last-child td { border-bottom: 0; }
 .scan__name { font-size: 1.25rem; font-weight: 700; }
 .scan__meta { color: var(--m); }
 .is-ok .scan__icon { background: var(--g); } .is-ok .scan__msg { color: var(--g); }
-.is-already .scan__icon { background: var(--y); } .is-already .scan__msg { color: var(--y); }
+.is-already .scan__icon, .is-multiple .scan__icon { background: var(--y); }
+.is-multiple .scan__msg { color: var(--y); font-size: 1.15rem; } .is-already .scan__msg { color: var(--y); }
 .is-unpaid .scan__icon, .is-cancelled .scan__icon, .is-notfound .scan__icon, .is-error .scan__icon { background: var(--r); color: #fff; }
 .is-unpaid .scan__msg, .is-cancelled .scan__msg, .is-notfound .scan__msg, .is-error .scan__msg { color: #ff8a8f; }
 .scan__side { display: grid; gap: 14px; min-width: 0; }

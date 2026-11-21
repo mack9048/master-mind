@@ -67,24 +67,31 @@ $mode   = razorpay_enabled() ? 'razorpay' : 'upi';
 $pdo    = db();
 
 try {
+    allow_multi_bookings($pdo);
     $pdo->beginTransaction();
 
-    // Already registered with this number?
-    $stmt = $pdo->prepare('SELECT * FROM registrations WHERE event_slug = ? AND phone = ? FOR UPDATE');
-    $stmt->execute([$slug, $phone]);
+    // The same phone / e-mail may book for several people. Only the SAME PERSON
+    // (same phone + same name) is treated as a repeat: an unpaid booking is reused
+    // so retrying the payment doesn't create duplicates; a paid one is reported.
+    $stmt = $pdo->prepare("SELECT * FROM registrations
+                            WHERE event_slug = ? AND phone = ? AND name = ? AND payment_status <> 'cancelled'
+                            ORDER BY (payment_status = 'paid') DESC, id DESC LIMIT 1 FOR UPDATE");
+    $stmt->execute([$slug, $phone, $name]);
     $existing = $stmt->fetch();
 
     if ($existing && $existing['payment_status'] === 'paid') {
         $pdo->rollBack();
         json_out([
             'ok'    => false,
-            'error' => 'This mobile number is already registered and paid. Your registration ID is ' . $existing['reg_code'] . '.',
+            'error' => $existing['name'] . ' is already registered and paid (ID ' . $existing['reg_code'] . '). '
+                     . 'To book for another person with the same phone number, enter that person’s name.',
+            'fields' => ['name' => 'Already booked – enter the other person’s name.'],
         ], 409);
     }
 
     // Capacity check (a returning "pending" person already holds a seat)
     $total = (int) cfg('event.seats', 0);
-    if ($total > 0 && !($existing && $existing['payment_status'] === 'pending')) {
+    if ($total > 0 && !($existing && in_array($existing['payment_status'], ['pending', 'failed'], true))) {
         $c = $pdo->prepare("SELECT COUNT(*) FROM registrations WHERE event_slug = ? AND payment_status IN ('paid','pending') FOR UPDATE");
         $c->execute([$slug]);
         if ((int) $c->fetchColumn() >= $total) {

@@ -64,6 +64,7 @@ if (!in_array('paid_at', $cols, true)) {
     $pdo->exec("ALTER TABLE registrations ADD paid_at DATETIME NULL AFTER payment_ref");
 }
 ensure_ticket_column($pdo);
+allow_multi_bookings($pdo);
 if (!in_array('checked_in_at', $cols, true)) {
     $pdo->exec("ALTER TABLE registrations ADD checked_in_at DATETIME NULL AFTER attended");
 }
@@ -79,9 +80,24 @@ function find_for_checkin(PDO $pdo, string $slug, string $input): ?array
         $input = $m[1];
     }
     $code = strtoupper($input);
-    $st = $pdo->prepare('SELECT * FROM registrations WHERE event_slug = ? AND (reg_code = ? OR phone = ?)');
-    $st->execute([$slug, $code, norm_phone($code) ?? '-']);
-    return $st->fetch() ?: null;
+    $st = $pdo->prepare('SELECT * FROM registrations WHERE event_slug = ? AND reg_code = ?');
+    $st->execute([$slug, $code]);
+    if ($r = $st->fetch()) {
+        return $r;
+    }
+    // Phone number: may belong to several bookings (family / friends)
+    $st = $pdo->prepare("SELECT * FROM registrations WHERE event_slug = ? AND phone = ? AND payment_status <> 'cancelled' ORDER BY id");
+    $st->execute([$slug, norm_phone($code) ?? '-']);
+    $rows = $st->fetchAll();
+    if (count($rows) > 1) {
+        // prefer the only paid & not-yet-arrived person; otherwise ask for the Reg ID
+        $waiting = array_values(array_filter($rows, fn ($x) => $x['payment_status'] === 'paid' && !(int) $x['attended']));
+        if (count($waiting) === 1) {
+            return $waiting[0];
+        }
+        return ['__multiple' => $rows];
+    }
+    return $rows[0] ?? null;
 }
 
 /* ---------- Camera / scanner check-in (JSON) ---------- */
@@ -95,6 +111,12 @@ if (($_GET['api'] ?? '') === 'checkin' && $_SERVER['REQUEST_METHOD'] === 'POST')
     $input = (string) ($_POST['code'] ?? '');
     $r = find_for_checkin($pdo, $slug, $input);
     $out = ['input' => mb_substr($input, 0, 80)];
+    if ($r && isset($r['__multiple'])) {
+        $list = array_map(fn ($x) => $x['name'] . ' (' . $x['reg_code'] . ($x['attended'] ? ', in' : '') . ')', $r['__multiple']);
+        $out += ['status' => 'multiple', 'message' => count($list) . ' bookings on this phone – scan the ticket or type the Reg ID', 'list' => $list];
+        echo json_encode($out, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
     if (!$r) {
         $out += ['status' => 'notfound', 'message' => 'No booking found'];
     } else {
@@ -234,6 +256,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'checkin':
             $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
             $r = find_for_checkin($pdo, $slug, $code);
+            if ($r && isset($r['__multiple'])) {
+                go(['view' => 'bookings', 'q' => norm_phone($code) ?? $code], 'Several bookings use this phone number – check in each person by Reg ID.');
+            }
             if (!$r) {
                 go(['view' => 'checkin'], "No booking found for “{$code}”.");
             }
@@ -296,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 go(['view' => 'booking', 'id' => $id], 'Booking saved.');
             } catch (PDOException $ex) {
                 $dup = str_contains($ex->getMessage(), 'Duplicate');
-                go($do === 'create' ? ['view' => 'add'] : ['view' => 'booking', 'id' => $id], $dup ? 'This phone number is already booked for this event.' : 'Could not save: database error.');
+                go($do === 'create' ? ['view' => 'add'] : ['view' => 'booking', 'id' => $id], $dup ? 'Could not save: duplicate Reg ID, please try again.' : 'Could not save: database error.');
             }
     }
     go();

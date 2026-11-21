@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     updated_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_reg_code (reg_code),
-    UNIQUE KEY uq_event_phone (event_slug, phone),
+    KEY idx_event_phone (event_slug, phone),
     KEY idx_event_status (event_slug, payment_status),
     KEY idx_rzp_order (razorpay_order_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

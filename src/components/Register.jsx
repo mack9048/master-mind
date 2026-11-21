@@ -133,7 +133,7 @@ function RazorpayStep({ reg, onPaid }) {
   );
 }
 
-function Done({ code, onClose, confirmed, ticketUrl, emailed }) {
+function Done({ code, onClose, confirmed, ticketUrl, emailed, onAnother }) {
   return (
     <>
       <div className="ok-icon">✓</div>
@@ -146,6 +146,7 @@ function Done({ code, onClose, confirmed, ticketUrl, emailed }) {
       <div className="stack">
         {ticketUrl && <a className="btn btn--primary" href={`${ticketUrl}&download=1`} target="_blank" rel="noopener noreferrer">Download ticket (PDF)</a>}
         <a className="btn btn--ghost" href={waLink(`Hi, I registered for Master Mind. My registration ID is ${code}`)} target="_blank" rel="noopener noreferrer">Share ID on WhatsApp</a>
+        <button className="btn btn--ghost" type="button" onClick={onAnother}>+ Book for another person</button>
         <button className={`btn ${ticketUrl ? 'btn--ghost' : 'btn--primary'}`} type="button" onClick={onClose}>Done</button>
       </div>
     </>
@@ -203,6 +204,14 @@ export default function Register({ status }) {
     setReg(res);
   }
 
+  // Same phone & e-mail, new attendee (friends / family)
+  const anotherPerson = () => {
+    setF((prev) => ({ ...EMPTY, phone: prev.phone, email: prev.email }));
+    setErrors({}); setMsg('');
+    setReg(null); setPaid(false); setPayInfo(null);
+    setTimeout(() => formRef.current?.elements.name?.focus(), 50);
+  };
+
   const closeModal = () => {
     if (paid) { setF(EMPTY); setReg(null); setPaid(false); setPayInfo(null); } else setReg(null);
   };
@@ -256,6 +265,7 @@ export default function Register({ status }) {
                 <span className="btn__label">Continue to payment · ₹{EVENT.fee}</span><span className="btn__spin" aria-hidden="true" />
               </button>
               {msg && <p className="form__msg" role="alert">{msg}</p>}
+              <p className="book__note">Booking for friends or family? Register each person — the same phone &amp; e-mail can be used again.</p>
               <p className="book__note">Secure online payment on the next step · Questions? <a className="link" href={telLink}>{EVENT.phone}</a></p>
             </form>
           )}
@@ -265,7 +275,7 @@ export default function Register({ status }) {
       {reg && (
         <Modal onClose={closeModal}>
           {paid
-            ? <Done code={reg.reg_code} onClose={closeModal} confirmed={reg.mode === 'razorpay'} ticketUrl={payInfo?.ticketUrl} emailed={payInfo?.emailed} />
+            ? <Done code={reg.reg_code} onClose={closeModal} confirmed={reg.mode === 'razorpay'} ticketUrl={payInfo?.ticketUrl} emailed={payInfo?.emailed} onAnother={anotherPerson} />
             : reg.mode === 'razorpay'
               ? <RazorpayStep reg={reg} onPaid={(info) => { setPayInfo(info || null); setPaid(true); }} />
               : <PayStep reg={reg} onPaid={() => setPaid(true)} />}

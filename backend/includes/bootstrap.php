@@ -190,6 +190,23 @@ function db_problem(Throwable $e): string
     return 'database error (' . ($e instanceof PDOException ? ($e->errorInfo[1] ?? $e->getCode()) : get_class($e)) . ')';
 }
 
+/**
+ * Several people may book with the same phone / e-mail (e.g. a parent booking for two kids).
+ * Older tables had UNIQUE(event_slug, phone) – replace it with a normal index, once.
+ */
+function allow_multi_bookings(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    $idx = $pdo->query("SHOW INDEX FROM registrations WHERE Key_name = 'uq_event_phone'")->fetch();
+    if ($idx) {
+        $pdo->exec('ALTER TABLE registrations DROP INDEX uq_event_phone, ADD INDEX idx_event_phone (event_slug, phone)');
+    }
+}
+
 function e($value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

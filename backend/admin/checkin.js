@@ -29,14 +29,15 @@
     if (navigator.vibrate) navigator.vibrate(ok ? 80 : [120, 80, 120]);
   }
 
-  const ICON = { ok: '✓', already: '!', unpaid: '₹', cancelled: '✕', notfound: '?', error: '!' };
+  const ICON = { ok: '✓', already: '!', unpaid: '₹', cancelled: '✕', notfound: '?', multiple: '⋯', error: '!' };
   function show(res) {
     const st = res.status || 'error';
     result.className = 'scan__result is-' + st;
     result.innerHTML = `
       <div class="scan__icon">${ICON[st] || '!'}</div>
       <div class="scan__msg">${esc(res.message || 'Error')}</div>
-      ${res.name ? `<div class="scan__name">${esc(res.name)}</div><div class="scan__meta">${esc(res.reg_code)} · ${esc(res.phone)}${res.profession ? ' · ' + esc(res.profession) : ''}</div>` : `<div class="scan__meta">${esc(res.input)}</div>`}
+      ${res.list ? `<div class="scan__meta">${res.list.map(esc).join('<br>')}</div>` : ''}
+      ${res.name ? `<div class="scan__name">${esc(res.name)}</div><div class="scan__meta">${esc(res.reg_code)} · ${esc(res.phone)}${res.profession ? ' · ' + esc(res.profession) : ''}</div>` : (res.list ? '' : `<div class="scan__meta">${esc(res.input)}</div>`)}
       ${res.id && st !== 'ok' ? `<a class="b-ghost" href="?view=booking&id=${res.id}">Open booking</a>` : ''}`;
     result.hidden = false;
     beep(st === 'ok');
