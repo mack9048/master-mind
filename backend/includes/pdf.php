@@ -256,6 +256,23 @@ final class MiniPdf
         }
     }
 
+    /** QR code (matrix from qr_matrix()) as a $size mm square at (x, y). Dark modules only – keep a light background. */
+    public function qr(float $x, float $y, float $size, array $matrix, string $color = '#000000'): void
+    {
+        $n = count($matrix);
+        $m = $size / $n;
+        foreach ($matrix as $row => $cells) {
+            $run = -1;
+            foreach ($cells + [$n => false] as $col => $dark) {   // merge horizontal runs into one rectangle
+                if ($dark && $run < 0) { $run = $col; }
+                if (!$dark && $run >= 0) {
+                    $this->rect($x + $run * $m, $y + $row * $m, ($col - $run) * $m + 0.01, $m + 0.01, $color);
+                    $run = -1;
+                }
+            }
+        }
+    }
+
     /** Code 128 (set B) barcode drawn horizontally (bars vertical). */
     public function barcode128(float $x, float $y, float $w, float $h, string $data, string $color = '#000000'): void
     {

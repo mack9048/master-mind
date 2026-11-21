@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/pdf.php';
+require_once __DIR__ . '/qr.php';
 
 /** Signed token so a ticket link can't be guessed from the Reg ID alone. */
 function ticket_token(string $regCode): string
@@ -127,16 +128,17 @@ function ticket_pdf(array $r): string
 
     $pdf->fitText($x0, 72, 'MAC MEDIA SCHOOL  ·  SCHOOL.MACADZ.COM  ·  ' . cfg('event.phone'), 5.2, $cut - $x0 - 6, $lav, true, 'L', 0.4);
 
-    // ---------- stub: white card with barcode
+    // ---------- stub: white card with QR code (scanned at check-in)
     $code = (string) $r['reg_code'];
     $cx0 = $cut + 6; $cw = $R - $cut - 12;
-    $pdf->rect($cx0 + 0.8, 11.8, $cw, 46, $navy, 3);
-    $pdf->rect($cx0, 11, $cw, 46, $white, 3);
-    $pdf->barcode128($cx0 + 4, 15, $cw - 8, 23, $code, $navy);
-    $pdf->fitText($cx0 + $cw / 2, 44, $code, 10.5, $cw - 6, $navy, true, 'C', 0.6);
-    $pdf->text($cx0 + $cw / 2, 52, 'ADMIT ONE', 7.5, $navy, true, 'C', 1.2);
-    $pdf->text($cut + ($R - $cut) / 2, 64.5, 'ADMISSION NO.', 5.5, $navy, true, 'C', 0.8);
-    $pdf->text($cut + ($R - $cut) / 2, 69.5, $code, 7.5, $navy, true, 'C', 0.8);
+    $pdf->rect($cx0 + 0.8, 10.3, $cw, 50, $navy, 3);
+    $pdf->rect($cx0, 9.5, $cw, 50, $white, 3);
+    $qs = 29;
+    $pdf->qr($cx0 + ($cw - $qs) / 2, 14.5, $qs, qr_matrix($code), $navy);
+    $pdf->fitText($cx0 + $cw / 2, 50, $code, 10.5, $cw - 6, $navy, true, 'C', 0.6);
+    $pdf->text($cx0 + $cw / 2, 55.8, 'SCAN AT ENTRY', 6, '#6a6a8a', true, 'C', 1);
+    $pdf->text($cut + ($R - $cut) / 2, 66, 'ADMIT ONE', 8, $navy, true, 'C', 1.4);
+    $pdf->barcode128($cut + 10, 69, $R - $cut - 20, 4.5, $code, $navy);
 
     return $pdf->output(cfg('event.series') . ' ticket ' . $code);
 }

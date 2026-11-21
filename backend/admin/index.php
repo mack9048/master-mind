@@ -64,6 +64,60 @@ if (!in_array('paid_at', $cols, true)) {
     $pdo->exec("ALTER TABLE registrations ADD paid_at DATETIME NULL AFTER payment_ref");
 }
 ensure_ticket_column($pdo);
+if (!in_array('checked_in_at', $cols, true)) {
+    $pdo->exec("ALTER TABLE registrations ADD checked_in_at DATETIME NULL AFTER attended");
+}
+
+/**
+ * Look up a booking from whatever was typed or scanned:
+ * a Reg ID, a phone number, or a ticket link containing ?code=MM26-…
+ */
+function find_for_checkin(PDO $pdo, string $slug, string $input): ?array
+{
+    $input = trim($input);
+    if (preg_match('/[?&]code=([A-Za-z0-9-]+)/', $input, $m)) {
+        $input = $m[1];
+    }
+    $code = strtoupper($input);
+    $st = $pdo->prepare('SELECT * FROM registrations WHERE event_slug = ? AND (reg_code = ? OR phone = ?)');
+    $st->execute([$slug, $code, norm_phone($code) ?? '-']);
+    return $st->fetch() ?: null;
+}
+
+/* ---------- Camera / scanner check-in (JSON) ---------- */
+if (($_GET['api'] ?? '') === 'checkin' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    if (!csrf_check($_POST['csrf'] ?? null)) {
+        echo json_encode(['status' => 'error', 'message' => 'Session expired – reload the page.']);
+        exit;
+    }
+    $input = (string) ($_POST['code'] ?? '');
+    $r = find_for_checkin($pdo, $slug, $input);
+    $out = ['input' => mb_substr($input, 0, 80)];
+    if (!$r) {
+        $out += ['status' => 'notfound', 'message' => 'No booking found'];
+    } else {
+        $out += ['name' => $r['name'], 'reg_code' => $r['reg_code'], 'phone' => $r['phone'], 'profession' => $r['profession'], 'id' => (int) $r['id']];
+        if (in_array($r['payment_status'], ['cancelled', 'failed'], true)) {
+            $out += ['status' => 'cancelled', 'message' => 'Booking is ' . $r['payment_status']];
+        } elseif ($r['payment_status'] !== 'paid') {
+            $out += ['status' => 'unpaid', 'message' => 'NOT PAID – collect ₹' . (int) $r['amount'] . ' before entry'];
+        } elseif ((int) $r['attended'] === 1) {
+            $out += ['status' => 'already', 'message' => 'Already checked in' . ($r['checked_in_at'] ? ' at ' . date('h:i A', strtotime($r['checked_in_at'])) : '')];
+        } else {
+            $pdo->prepare('UPDATE registrations SET attended = 1, checked_in_at = NOW() WHERE id = ?')->execute([$r['id']]);
+            $out += ['status' => 'ok', 'message' => 'Checked in ✓'];
+        }
+    }
+    $c = $pdo->prepare("SELECT SUM(attended = 1) a, SUM(payment_status = 'paid') p FROM registrations WHERE event_slug = ?");
+    $c->execute([$slug]);
+    $cnt = $c->fetch();
+    $out['checked_in'] = (int) $cnt['a'];
+    $out['paid'] = (int) $cnt['p'];
+    echo json_encode($out, JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 /* ---------- PDF ticket download (admin) ---------- */
 if (isset($_GET['ticket'])) {
@@ -171,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE registrations SET payment_status = 'cancelled' WHERE id = ? AND event_slug = ?")->execute([$id, $slug]);
             go($backParams, 'Booking cancelled — seat released.');
         case 'attended':
-            $pdo->prepare('UPDATE registrations SET attended = 1 - attended WHERE id = ? AND event_slug = ?')->execute([$id, $slug]);
+            $pdo->prepare('UPDATE registrations SET attended = 1 - attended, checked_in_at = IF(attended = 1, COALESCE(checked_in_at, NOW()), NULL) WHERE id = ? AND event_slug = ?')->execute([$id, $slug]);
             go($backParams, 'Attendance updated.');
         case 'delete':
             $pdo->prepare('DELETE FROM registrations WHERE id = ? AND event_slug = ?')->execute([$id, $slug]);
@@ -179,16 +233,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'checkin':
             $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
-            $st = $pdo->prepare('SELECT * FROM registrations WHERE event_slug = ? AND (reg_code = ? OR phone = ?)');
-            $st->execute([$slug, $code, norm_phone($code) ?? '-']);
-            $r = $st->fetch();
+            $r = find_for_checkin($pdo, $slug, $code);
             if (!$r) {
                 go(['view' => 'checkin'], "No booking found for “{$code}”.");
             }
             if ($r['payment_status'] !== 'paid') {
                 go(['view' => 'booking', 'id' => $r['id']], "{$r['name']} ({$r['reg_code']}) has NOT paid yet — verify payment before check-in.");
             }
-            $pdo->prepare('UPDATE registrations SET attended = 1 WHERE id = ?')->execute([$r['id']]);
+            $pdo->prepare('UPDATE registrations SET attended = 1, checked_in_at = COALESCE(checked_in_at, NOW()) WHERE id = ?')->execute([$r['id']]);
             go(['view' => 'checkin'], "✓ Checked in: {$r['name']} ({$r['reg_code']})");
 
         case 'save':
@@ -587,18 +639,49 @@ function row_actions(array $r, string $csrf, string $back): string
       <div class="form__foot"><button name="do" value="create" class="b-primary">Add booking</button></div>
     </form>
 
-<?php /* ================= CHECK-IN ================= */ elseif ($view === 'checkin'): ?>
-    <header class="head"><h1>Check-in</h1><p>On the event day: type the Reg ID or phone number to mark attendance.</p></header>
-    <form method="post" class="card checkin">
-      <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
-      <input name="code" placeholder="MM26-XXXXXX or 98XXXXXXXX" autofocus autocomplete="off" required>
-      <button name="do" value="checkin" class="b-primary">Check in</button>
-    </form>
-    <section class="stats stats--3">
-      <div class="stat stat--paid"><span>Checked in</span><b><?= $S['attended'] ?></b></div>
-      <div class="stat"><span>Paid, not yet arrived</span><b><?= max(0, $S['paid'] - $S['attended']) ?></b></div>
-      <div class="stat stat--unpaid"><span>Unpaid bookings</span><b><?= $S['unpaid'] + $S['to_verify'] ?></b></div>
+<?php /* ================= CHECK-IN ================= */ elseif ($view === 'checkin'):
+    $st = $pdo->prepare('SELECT name, reg_code, checked_in_at FROM registrations WHERE event_slug = ? AND attended = 1 ORDER BY checked_in_at DESC LIMIT 12');
+    $st->execute([$slug]);
+    $recent = $st->fetchAll();
+?>
+    <header class="head"><h1>Check-in</h1><p>Scan the QR code on the ticket with the camera, use a barcode scanner, or type the Reg ID / phone number.</p></header>
+
+    <section class="scan card" id="scan" data-csrf="<?= e($csrf) ?>">
+      <div class="scan__cam">
+        <video id="scanVideo" playsinline muted></video>
+        <div class="scan__frame" aria-hidden="true"></div>
+        <div class="scan__idle" id="scanIdle">
+          <button type="button" class="b-primary scan__start" id="scanStart">📷 Scan QR with camera</button>
+          <p class="muted">Allow camera access when asked. Works on phones and laptops (HTTPS).</p>
+        </div>
+        <div class="scan__result" id="scanResult" hidden></div>
+      </div>
+      <div class="scan__side">
+        <form class="checkin" id="manualForm" method="post">
+          <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+          <input name="code" id="manualCode" placeholder="MM26-XXXXXX or 98XXXXXXXX" autocomplete="off" required>
+          <button name="do" value="checkin" class="b-primary">Check in</button>
+        </form>
+        <div class="scan__controls">
+          <button type="button" class="b-ghost" id="scanStop" hidden>Stop camera</button>
+          <button type="button" class="b-ghost" id="scanFlip" hidden>Switch camera</button>
+        </div>
+        <section class="stats stats--3 scan__stats">
+          <div class="stat stat--paid"><span>Checked in</span><b id="cntIn"><?= $S['attended'] ?></b></div>
+          <div class="stat"><span>Paid, not arrived</span><b id="cntWait"><?= max(0, $S['paid'] - $S['attended']) ?></b></div>
+          <div class="stat stat--unpaid"><span>Unpaid</span><b><?= $S['unpaid'] + $S['to_verify'] ?></b></div>
+        </section>
+        <h2 class="scan__h">Recent check-ins</h2>
+        <ul class="scan__log" id="scanLog">
+          <?php foreach ($recent as $x): ?>
+            <li class="ok"><b><?= e($x['name']) ?></b><code><?= e($x['reg_code']) ?></code><small><?= $x['checked_in_at'] ? e(date('h:i A', strtotime($x['checked_in_at']))) : '' ?></small></li>
+          <?php endforeach; ?>
+          <?php if (!$recent): ?><li class="empty-li">No one checked in yet.</li><?php endif; ?>
+        </ul>
+      </div>
     </section>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script>
+    <script src="checkin.js?v=1" defer></script>
 <?php endif; ?>
   </main>
 </div>

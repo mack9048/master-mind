@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     razorpay_order_id    VARCHAR(60)  DEFAULT NULL,
     razorpay_payment_id  VARCHAR(60)  DEFAULT NULL,
     attended             TINYINT(1)   NOT NULL DEFAULT 0,
+    checked_in_at        DATETIME     DEFAULT NULL,
     admin_note           TEXT         DEFAULT NULL,
     ticket_sent_at       DATETIME     DEFAULT NULL,
     ip_address           VARCHAR(45)  DEFAULT NULL,
