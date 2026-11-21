@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/includes/bootstrap.php';
+require dirname(__DIR__) . '/includes/mailer.php';
 
 $slug = cfg('event.slug');
 csrf_token(); // sets the CSRF cookie before any output
@@ -62,6 +63,21 @@ if (!in_array('admin_note', $cols, true)) {
 if (!in_array('paid_at', $cols, true)) {
     $pdo->exec("ALTER TABLE registrations ADD paid_at DATETIME NULL AFTER payment_ref");
 }
+ensure_ticket_column($pdo);
+
+/* ---------- PDF ticket download (admin) ---------- */
+if (isset($_GET['ticket'])) {
+    $st = $pdo->prepare('SELECT * FROM registrations WHERE id = ? AND event_slug = ?');
+    $st->execute([(int) $_GET['ticket'], $slug]);
+    if ($t = $st->fetch()) {
+        $pdf = ticket_pdf($t);
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . ticket_filename($t) . '"');
+        header('Content-Length: ' . strlen($pdf));
+        echo $pdf;
+        exit;
+    }
+}
 
 /* =========================================================
    Helpers
@@ -94,7 +110,8 @@ function wa_confirm_link(array $r): string
     $msg = "Hi {$r['name']}, your seat for " . cfg('event.series') . ' – ' . cfg('event.title')
         . " is confirmed ✅\n\nRegistration ID: {$r['reg_code']}\nDate: " . cfg('event.date_label')
         . "\nTime: " . cfg('event.time_label') . "\nVenue: " . cfg('event.venue')
-        . "\n\nPlease show this ID at the venue. See you there!";
+        . "\n\n🎟️ Your entry ticket (PDF): " . ticket_url($r['reg_code'])
+        . "\n\nPlease show the ticket or this ID at the venue. See you there!";
     return 'https://wa.me/' . ltrim($r['phone'], '+') . '?text=' . rawurlencode($msg);
 }
 
@@ -137,7 +154,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     switch ($do) {
         case 'paid':
             $pdo->prepare("UPDATE registrations SET payment_status = 'paid', paid_at = COALESCE(paid_at, NOW()) WHERE id = ? AND event_slug = ?")->execute([$id, $slug]);
-            go($backParams, 'Payment verified — seat confirmed.');
+            auto_send_ticket($pdo, $id);
+            go($backParams, 'Payment confirmed — seat confirmed.' . (mail_configured() ? ' Ticket e-mailed.' : ''));
+        case 'send_ticket':
+            $r = find_reg($pdo, $id, $slug);
+            $res = $r ? send_ticket_email($pdo, $r) : ['ok' => false, 'error' => 'Booking not found.'];
+            go($backParams, $res['ok'] ? "Ticket e-mailed to {$r['email']}." : $res['error']);
         case 'pending':
             $pdo->prepare("UPDATE registrations SET payment_status = 'pending', paid_at = NULL WHERE id = ? AND event_slug = ?")->execute([$id, $slug]);
             go($backParams, 'Marked as unpaid.');
@@ -153,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             go($backParams, 'Attendance updated.');
         case 'delete':
             $pdo->prepare('DELETE FROM registrations WHERE id = ? AND event_slug = ?')->execute([$id, $slug]);
-            go(['view' => 'bookings'], 'Booking deleted.');
+            go(($backParams['view'] ?? '') === 'bookings' ? $backParams : ['view' => 'bookings'], 'Booking deleted.');
 
         case 'checkin':
             $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
@@ -205,12 +227,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $data['ip_address'] = 'admin';
                     $cols = array_keys($data);
                     $pdo->prepare('INSERT INTO registrations (' . implode(',', $cols) . ', paid_at) VALUES (:' . implode(', :', $cols) . ', ' . ($status === 'paid' ? 'NOW()' : 'NULL') . ')')->execute($data);
-                    go(['view' => 'booking', 'id' => $pdo->lastInsertId()], "Booking {$data['reg_code']} added.");
+                    $newId = (int) $pdo->lastInsertId();
+                    if ($status === 'paid') {
+                        auto_send_ticket($pdo, $newId);
+                    }
+                    go(['view' => 'booking', 'id' => $newId], "Booking {$data['reg_code']} added.");
                 }
+                $before = find_reg($pdo, $id, $slug);
                 $sets = implode(', ', array_map(fn ($k) => "$k = :$k", array_keys($data)));
                 $paidAt = $status === 'paid' ? ', paid_at = COALESCE(paid_at, NOW())' : ', paid_at = NULL';
                 $pdo->prepare("UPDATE registrations SET $sets $paidAt WHERE id = :id AND event_slug = :slug")
                     ->execute($data + ['id' => $id, 'slug' => $slug]);
+                if ($status === 'paid' && $before && $before['payment_status'] !== 'paid') {
+                    auto_send_ticket($pdo, $id);
+                }
                 go(['view' => 'booking', 'id' => $id], 'Booking saved.');
             } catch (PDOException $ex) {
                 $dup = str_contains($ex->getMessage(), 'Duplicate');
@@ -302,9 +332,12 @@ function row_actions(array $r, string $csrf, string $back): string
         <button name="do" value="paid" class="b-ok">Mark paid</button>
         <a class="b-ghost" href="<?= e(wa_reminder_link($r)) ?>" target="_blank">Remind</a>
       <?php elseif ($r['payment_status'] === 'paid'): ?>
-        <a class="b-wa" href="<?= e(wa_confirm_link($r)) ?>" target="_blank">WhatsApp</a>
+        <a class="b-wa" href="<?= e(wa_confirm_link($r)) ?>" target="_blank" title="WhatsApp confirmation with ticket link">WhatsApp</a>
+        <button name="do" value="send_ticket" class="b-ghost" title="E-mail the PDF ticket"><?= !empty($r['ticket_sent_at']) ? 'Resend ✉' : 'Send ✉' ?></button>
+        <a class="b-ghost" href="?ticket=<?= (int) $r['id'] ?>" target="_blank" title="Open PDF ticket">Ticket</a>
       <?php endif; ?>
-      <a class="b-ghost" href="?view=booking&id=<?= (int) $r['id'] ?>">Open</a>
+      <a class="b-ghost" href="?view=booking&id=<?= (int) $r['id'] ?>">Edit</a>
+      <button name="do" value="delete" class="b-icon" title="Delete booking" onclick="return confirm('Delete <?= e(addslashes($r['name'])) ?> (<?= e($r['reg_code']) ?>) permanently?')">🗑</button>
     </form>
     <?php return (string) ob_get_clean();
 }
@@ -422,8 +455,9 @@ function row_actions(array $r, string $csrf, string $back): string
     $pages = max(1, (int) ceil($count / $per));
     $tabs = ['' => ['All', $S['total']], 'verify' => ['To verify', $S['to_verify']], 'unpaid' => ['Unpaid', $S['unpaid']], 'paid' => ['Paid', $S['paid']], 'cancelled' => ['Cancelled', $S['cancelled']], 'attended' => ['Checked in', $S['attended']]];
 ?>
-    <header class="head"><h1><?= $tab === 'verify' ? 'Verify payments' : 'Bookings' ?></h1>
-      <p><?= $tab === 'verify' ? 'Match each UTR with your bank / UPI app, then press Verify.' : 'Search, filter and manage every booking.' ?></p></header>
+    <header class="head head--row"><div><h1><?= $tab === 'verify' ? 'Verify payments' : 'Bookings' ?></h1>
+      <p><?= $tab === 'verify' ? 'Match each UTR with your bank / UPI app, then press Verify.' : 'Create, edit, delete and send tickets for every booking.' ?></p></div>
+      <a class="b-primary" href="?view=add">＋ Add booking</a></header>
 
     <form class="filters" method="get">
       <input type="hidden" name="view" value="bookings"><input type="hidden" name="tab" value="<?= e($tab) ?>">
@@ -447,7 +481,7 @@ function row_actions(array $r, string $csrf, string $back): string
             <td><strong><?= e($r['name']) ?></strong><?php if ($r['admin_note']): ?><br><small title="<?= e($r['admin_note']) ?>">📝 <?= e(mb_strimwidth($r['admin_note'], 0, 40, '…')) ?></small><?php endif; ?></td>
             <td><a href="tel:<?= e($r['phone']) ?>"><?= e($r['phone']) ?></a><br><small><?= e($r['email']) ?></small></td>
             <td><?= e($r['profession'] ?: '—') ?></td>
-            <td><?= status_pill($r) ?><br><small>₹<?= (int) $r['amount'] ?> · <?= e($r['payment_mode']) ?><?= $r['payment_ref'] ? ' · <code>' . e($r['payment_ref']) . '</code>' : '' ?></small></td>
+            <td><?= status_pill($r) ?><?php if (!empty($r['ticket_sent_at'])): ?> <span class="pill pill--sent" title="Ticket e-mailed <?= e($r['ticket_sent_at']) ?>">✉ sent</span><?php endif; ?><br><small>₹<?= (int) $r['amount'] ?> · <?= e($r['payment_mode']) ?><?= $r['payment_ref'] ? ' · <code>' . e($r['payment_ref']) . '</code>' : '' ?></small></td>
             <td><small><?= e(date('d M, h:i A', strtotime($r['created_at']))) ?></small></td>
             <td><?= row_actions($r, $csrf, $self) ?></td>
           </tr>
@@ -500,9 +534,20 @@ function row_actions(array $r, string $csrf, string $back): string
 
       <div class="stack">
         <section class="card">
-          <h2>Quick actions</h2>
+          <h2>Ticket & confirmation</h2>
+          <?php if ($r['payment_status'] === 'paid'): ?>
+          <form method="post" class="qa">
+            <input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>"><input type="hidden" name="back" value="<?= e($self) ?>">
+            <a class="b-ghost" href="?ticket=<?= (int) $r['id'] ?>" target="_blank">🎟 View / download PDF ticket</a>
+            <button name="do" value="send_ticket" class="b-primary"><?= !empty($r['ticket_sent_at']) ? 'Resend ticket by e-mail' : 'E-mail ticket to ' . e($r['email']) ?></button>
+            <p class="muted"><?= !empty($r['ticket_sent_at']) ? '✓ Ticket e-mailed ' . e(date('d M, h:i A', strtotime($r['ticket_sent_at']))) : 'Ticket not e-mailed yet.' ?><?= mail_configured() ? '' : ' (E-mail not set up in config.php)' ?></p>
+          </form>
+          <?php else: ?>
+            <p class="muted">The PDF ticket becomes available once the booking is marked <b>Paid</b>.</p>
+          <?php endif; ?>
+          <h2 style="margin-top:18px">Quick actions</h2>
           <div class="qa">
-            <a class="b-wa" href="<?= e(wa_confirm_link($r)) ?>" target="_blank">Send confirmation on WhatsApp</a>
+            <a class="b-wa" href="<?= e(wa_confirm_link($r)) ?>" target="_blank">Send confirmation + ticket link on WhatsApp</a>
             <a class="b-ghost" href="<?= e(wa_reminder_link($r)) ?>" target="_blank">Send payment reminder</a>
             <a class="b-ghost" href="tel:<?= e($r['phone']) ?>">Call <?= e($r['phone']) ?></a>
             <a class="b-ghost" href="mailto:<?= e($r['email']) ?>">Email <?= e($r['email']) ?></a>

@@ -67,6 +67,20 @@ return [
         'key_secret' => '',
     ],
 
+    /* ---------- Confirmation e-mail with PDF ticket ----------
+     * Sent automatically when a booking becomes paid, and from the dashboard.
+     * Create a mailbox in hPanel → Emails (e.g. tickets@macadz.com) and fill it in.
+     * Leave smtp_host empty to use PHP mail() instead (less reliable).
+     */
+    'mail' => [
+        'from_email' => '',                  // e.g. tickets@macadz.com
+        'from_name'  => 'MAC Media School',
+        'smtp_host'  => 'smtp.hostinger.com',
+        'smtp_port'  => 465,
+        'smtp_user'  => '',                  // usually the same as from_email
+        'smtp_pass'  => '',                  // mailbox password
+    ],
+
     /* ---------- Admin panel (/admin) ---------- */
     'admin' => [
         'user' => 'admin',

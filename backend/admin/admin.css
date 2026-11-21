@@ -116,11 +116,14 @@ tr:last-child td { border-bottom: 0; }
 .pill--verify { background: var(--y); color: #2a1d00; }
 .pill--pending { background: rgba(239,79,87,.18); color: #ff8a8f; }
 .pill--failed, .pill--cancelled { background: #3a3a3f; color: var(--m); }
+.pill--sent { background: rgba(61,139,255,.18); color: #8fb8ff; }
 .pill--att { background: var(--b); color: #fff; margin-top: 4px; }
 
 /* Buttons */
 .acts, .qa { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .qa { display: grid; gap: 8px; }
+.b-icon { padding: 6px 9px; border-radius: 999px; border: 1px solid rgba(239,79,87,.35); background: transparent; color: #ff8a8f; font-size: .85rem; line-height: 1; }
+.b-icon:hover { background: var(--r); color: #fff; }
 .b-ok, .b-ghost, .b-wa, .b-danger, .b-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 7px 12px; border-radius: 999px; border: 1px solid var(--l2); background: transparent; color: var(--t);

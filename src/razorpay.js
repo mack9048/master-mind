@@ -59,7 +59,7 @@ export async function payWithRazorpay(reg) {
           razorpay_payment_id: resp.razorpay_payment_id,
           razorpay_signature: resp.razorpay_signature,
         });
-        done(v.ok ? { status: 'paid', paymentId: resp.razorpay_payment_id } : { status: 'error', message: v.error || 'Payment could not be verified.' });
+        done(v.ok ? { status: 'paid', paymentId: resp.razorpay_payment_id, ticketUrl: v.ticket_url, emailed: v.emailed } : { status: 'error', message: v.error || 'Payment could not be verified.' });
       },
       modal: {
         ondismiss: () => done(lastFailure ? { status: 'failed', message: lastFailure } : { status: 'dismissed' }),

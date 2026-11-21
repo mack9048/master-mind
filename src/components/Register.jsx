@@ -103,7 +103,7 @@ function RazorpayStep({ reg, onPaid }) {
   async function pay() {
     setState({ busy: true, msg: '' });
     const r = await payWithRazorpay(reg);
-    if (r.status === 'paid') { onPaid(); return; }
+    if (r.status === 'paid') { onPaid(r); return; }
     setState({
       busy: false,
       msg: r.status === 'dismissed' ? 'Payment cancelled. Your seat is held — tap Pay to try again.' : r.message,
@@ -133,17 +133,20 @@ function RazorpayStep({ reg, onPaid }) {
   );
 }
 
-function Done({ code, onClose, confirmed }) {
+function Done({ code, onClose, confirmed, ticketUrl, emailed }) {
   return (
     <>
       <div className="ok-icon">✓</div>
       <h3 id="modalTitle">{confirmed ? 'You’re in! Seat confirmed.' : 'Registration received!'}</h3>
-      <p>{confirmed ? 'Your payment was successful.' : 'We’ll verify your payment and confirm your seat on WhatsApp shortly.'}</p>
+      <p>{confirmed
+        ? (emailed ? 'Your payment was successful. Your entry ticket has been e-mailed to you.' : 'Your payment was successful.')
+        : 'We’ll verify your payment and confirm your seat on WhatsApp shortly.'}</p>
       <span className="code">{code}</span>
       <p>Save this registration ID and show it at the venue.<br />{EVENT.dateLabel} · {EVENT.timeLabel}</p>
       <div className="stack">
+        {ticketUrl && <a className="btn btn--primary" href={`${ticketUrl}&download=1`} target="_blank" rel="noopener noreferrer">Download ticket (PDF)</a>}
         <a className="btn btn--ghost" href={waLink(`Hi, I registered for Master Mind. My registration ID is ${code}`)} target="_blank" rel="noopener noreferrer">Share ID on WhatsApp</a>
-        <button className="btn btn--primary" type="button" onClick={onClose}>Done</button>
+        <button className={`btn ${ticketUrl ? 'btn--ghost' : 'btn--primary'}`} type="button" onClick={onClose}>Done</button>
       </div>
     </>
   );
@@ -156,6 +159,7 @@ export default function Register({ status }) {
   const [busy, setBusy] = useState(false);
   const [reg, setReg] = useState(null);       // { reg_code, token, upi }
   const [paid, setPaid] = useState(false);
+  const [payInfo, setPayInfo] = useState(null); // { ticketUrl, emailed } after Razorpay success
   const formRef = useRef(null);
 
   const seatsLeft = status?.seats > 0 ? status.seats_left : null;
@@ -200,7 +204,7 @@ export default function Register({ status }) {
   }
 
   const closeModal = () => {
-    if (paid) { setF(EMPTY); setReg(null); setPaid(false); } else setReg(null);
+    if (paid) { setF(EMPTY); setReg(null); setPaid(false); setPayInfo(null); } else setReg(null);
   };
 
   const seatsNote = seatsLeft != null && !soldOut ? ` — ${seatsLeft} seats left` : ' — Limited seats';
@@ -261,9 +265,9 @@ export default function Register({ status }) {
       {reg && (
         <Modal onClose={closeModal}>
           {paid
-            ? <Done code={reg.reg_code} onClose={closeModal} confirmed={reg.mode === 'razorpay'} />
+            ? <Done code={reg.reg_code} onClose={closeModal} confirmed={reg.mode === 'razorpay'} ticketUrl={payInfo?.ticketUrl} emailed={payInfo?.emailed} />
             : reg.mode === 'razorpay'
-              ? <RazorpayStep reg={reg} onPaid={() => setPaid(true)} />
+              ? <RazorpayStep reg={reg} onPaid={(info) => { setPayInfo(info || null); setPaid(true); }} />
               : <PayStep reg={reg} onPaid={() => setPaid(true)} />}
         </Modal>
       )}

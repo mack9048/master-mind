@@ -9,6 +9,7 @@ declare(strict_types=1);
  */
 require dirname(__DIR__) . '/includes/bootstrap.php';
 require dirname(__DIR__) . '/includes/razorpay.php';
+require dirname(__DIR__) . '/includes/mailer.php';
 
 api_begin('POST');
 
@@ -45,4 +46,14 @@ $pdo->prepare("UPDATE registrations
                 WHERE id = ?")
     ->execute([$paymentId, $paymentId, $reg['id']]);
 
-json_out(['ok' => true, 'status' => 'paid', 'reg_code' => $regCode, 'payment_id' => $paymentId]);
+// Confirmation e-mail with the PDF ticket (once; failures are logged, never block the response)
+auto_send_ticket($pdo, (int) $reg['id']);
+
+json_out([
+    'ok'         => true,
+    'status'     => 'paid',
+    'reg_code'   => $regCode,
+    'payment_id' => $paymentId,
+    'ticket_url' => ticket_url($regCode),
+    'emailed'    => mail_configured(),
+]);
